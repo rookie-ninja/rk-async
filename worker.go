@@ -1,18 +1,126 @@
 package async
 
+import (
+	"context"
+	"github.com/rookie-ninja/rk-entry/v2/entry"
+	"go.uber.org/zap"
+	"sync"
+	"time"
+)
+
 type Worker interface {
-	Start() error
+	Start()
+
+	Stop()
 
 	Database() Database
 }
 
-type LocalWorker struct {
-	db Database
+func NewLocalWorker(db Database, logger *rkentry.LoggerEntry, event *rkentry.EventEntry) *LocalWorker {
+	return &LocalWorker{
+		db:     db,
+		logger: logger,
+		event:  event,
+	}
 }
 
-func (w *LocalWorker) Start() error {
-	//TODO implement me
-	panic("implement me")
+type LocalWorker struct {
+	db          Database
+	quitChannel chan struct{}
+	waitGroup   sync.WaitGroup
+	lock        sync.Mutex
+	once        sync.Once
+
+	logger *rkentry.LoggerEntry
+	event  *rkentry.EventEntry
+}
+
+func (w *LocalWorker) Start() {
+	w.once.Do(func() {
+		w.waitGroup.Add(1)
+	})
+
+	go func() {
+		waitChannel := time.NewTimer(time.Duration(1) * time.Second)
+
+		defer func() {
+			w.waitGroup.Done()
+		}()
+
+		for {
+			select {
+			case <-w.quitChannel:
+				return
+			case <-waitChannel.C:
+				w.processJob()
+				waitChannel.Reset(time.Duration(1) * time.Second)
+			default:
+				w.processJob()
+				time.Sleep(time.Duration(1) * time.Second)
+			}
+		}
+	}()
+}
+
+func (w *LocalWorker) Stop() {
+	close(w.quitChannel)
+	w.waitGroup.Wait()
+}
+
+func (w *LocalWorker) processJob() {
+	event := w.event.Start("processJob")
+	defer event.Finish()
+	event.SetResCode("OK")
+
+	// pick a job
+	job, err := w.db.PickJobToWork()
+	if err != nil {
+		w.logger.Error("failed to pick job", zap.Error(err))
+		event.AddErr(err)
+		event.SetResCode("Fail")
+		return
+	}
+	if job == nil {
+		event.IncCounter("jobEmpty", 1)
+		return
+	}
+
+	// process job & record error
+	err = job.Start(context.Background())
+	if err != nil {
+		job.RecordError(err)
+		event.AddErr(err)
+		event.SetResCode("Fail")
+
+		w.logger.Error("failed to process job",
+			zap.String("id", job.GetMeta().Id),
+			zap.String("type", job.GetMeta().Type),
+			zap.String("user", job.GetMeta().User),
+			zap.String("class", job.GetMeta().Class),
+			zap.String("category", job.GetMeta().Category))
+
+		if err := w.db.UpdateJobState(job, JobStateFailed); err != nil {
+			w.logger.Error("failed to update job state",
+				zap.String("id", job.GetMeta().Id),
+				zap.String("type", job.GetMeta().Type),
+				zap.String("user", job.GetMeta().User),
+				zap.String("class", job.GetMeta().Class),
+				zap.String("category", job.GetMeta().Category),
+				zap.String("state", JobStateFailed))
+			return
+		}
+	}
+
+	// update DB
+	if err := w.db.UpdateJobState(job, JobStateSuccess); err != nil {
+		w.logger.Error("failed to update job state",
+			zap.String("id", job.GetMeta().Id),
+			zap.String("type", job.GetMeta().Type),
+			zap.String("user", job.GetMeta().User),
+			zap.String("class", job.GetMeta().Class),
+			zap.String("category", job.GetMeta().Category),
+			zap.String("state", JobStateSuccess))
+	}
 }
 
 func (w *LocalWorker) Database() Database {

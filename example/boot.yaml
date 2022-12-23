@@ -1,0 +1,29 @@
+gin:
+  - name: example
+    port: 8080
+    enabled: true
+    middleware:
+      logging:
+        enabled: true
+      meta:
+        enabled: true
+mysql:
+  - name: mof
+    enabled: true
+    domain: "*"
+    user: root
+    pass: pass
+    addr: "localhost:3306"
+    database:
+      - name: async-job
+        autoCreate: true
+async:
+  enabled: true
+  database:
+    mysql:
+      enabled: true
+      entryName: mof
+      database: async-job
+  worker:
+    local:
+      enabled: true

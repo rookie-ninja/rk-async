@@ -1,35 +1,55 @@
 package async
 
-import "context"
-
 type Database interface {
+	Type() string
+
 	AddJob(job Job) error
 
-	ListJobs() ([]Job, error)
+	PickJobToWork() (Job, error)
+
+	UpdateJobState(job Job, state string) error
+
+	ListJobs(filter *JobFilter) ([]Job, error)
 
 	GetJob(id string) (Job, error)
 
-	CancelJob(id string) error
+	CancelJobsOverdue(days int) error
 
-	CancelJobsOverdue() error
+	CleanJobs(days int) error
 
-	CleanJobs() error
+	RegisterMarshaller(string, func(Job) ([]byte, error))
+
+	RegisterUnmarshaler(string, func([]byte) (Job, error))
 }
 
-const (
-	JobStateCreated  = "created"
-	JobStateRunning  = "running"
-	JobStateCanceled = "canceled"
-	JobStateSuccess  = "success"
-	JobStateFailed   = "failed"
-)
+func NewJobFilter() *JobFilter {
+	return &JobFilter{
+		TypeList:     []string{},
+		UserList:     []string{},
+		ClassList:    []string{},
+		CategoryList: []string{},
+	}
+}
 
-type Job interface {
-	Start(context.Context)
+type JobFilter struct {
+	TypeList     []string
+	UserList     []string
+	ClassList    []string
+	CategoryList []string
+}
 
-	Cancel(context.Context)
+func (f *JobFilter) AddType(in string) {
+	f.TypeList = append(f.TypeList, in)
+}
 
-	GetId() string
+func (f *JobFilter) AddUser(in string) {
+	f.UserList = append(f.UserList, in)
+}
 
-	GetState() string
+func (f *JobFilter) AddClass(in string) {
+	f.ClassList = append(f.ClassList, in)
+}
+
+func (f *JobFilter) AddCategory(in string) {
+	f.CategoryList = append(f.CategoryList, in)
 }
