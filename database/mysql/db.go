@@ -241,11 +241,43 @@ func (e *Database) GetJob(id string) (rkasync.Job, error) {
 	return e.UnmarshalJob([]byte(wrap.JobRaw), wrap.JobMeta)
 }
 
-func (e *Database) CancelJobsOverdue(days int) error {
+func (e *Database) CancelJobsOverdue(days int, filter *rkasync.JobFilter) error {
+	clauses := make([]clause.Expression, 0)
+
+	if filter != nil {
+		for i := range filter.TypeList {
+			clauses = append(clauses, clause.Eq{
+				Column: "type",
+				Value:  filter.TypeList[i],
+			})
+		}
+
+		for i := range filter.UserList {
+			clauses = append(clauses, clause.Eq{
+				Column: "user",
+				Value:  filter.UserList[i],
+			})
+		}
+
+		for i := range filter.ClassList {
+			clauses = append(clauses, clause.Eq{
+				Column: "class",
+				Value:  filter.ClassList[i],
+			})
+		}
+
+		for i := range filter.CategoryList {
+			clauses = append(clauses, clause.Eq{
+				Column: "category",
+				Value:  filter.CategoryList[i],
+			})
+		}
+	}
+
 	err := e.db.Transaction(func(tx *gorm.DB) error {
 		due := time.Now().AddDate(0, 0, -days)
 
-		resDB := tx.Model(&Wrapper{}).Where("state = ? AND updated_at < ?",
+		resDB := tx.Model(&Wrapper{}).Clauses(clauses...).Where("state = ? AND updated_at < ?",
 			rkasync.JobStateRunning, due).Update("state", rkasync.JobStateCanceled)
 		if resDB.Error != nil {
 			return resDB.Error
@@ -257,7 +289,39 @@ func (e *Database) CancelJobsOverdue(days int) error {
 	return err
 }
 
-func (e *Database) CleanJobs(days int) error {
+func (e *Database) CleanJobs(days int, filter *rkasync.JobFilter) error {
+	clauses := make([]clause.Expression, 0)
+
+	if filter != nil {
+		for i := range filter.TypeList {
+			clauses = append(clauses, clause.Eq{
+				Column: "type",
+				Value:  filter.TypeList[i],
+			})
+		}
+
+		for i := range filter.UserList {
+			clauses = append(clauses, clause.Eq{
+				Column: "user",
+				Value:  filter.UserList[i],
+			})
+		}
+
+		for i := range filter.ClassList {
+			clauses = append(clauses, clause.Eq{
+				Column: "class",
+				Value:  filter.ClassList[i],
+			})
+		}
+
+		for i := range filter.CategoryList {
+			clauses = append(clauses, clause.Eq{
+				Column: "category",
+				Value:  filter.CategoryList[i],
+			})
+		}
+	}
+
 	err := e.db.Transaction(func(tx *gorm.DB) error {
 		due := time.Now().AddDate(0, 0, -days)
 
@@ -265,7 +329,7 @@ func (e *Database) CleanJobs(days int) error {
 			rkasync.JobStateFailed, rkasync.JobStateSuccess, rkasync.JobStateCanceled,
 		}
 
-		resDB := tx.Where("state IN ? AND updated_at < ?", states, due).Delete(&Wrapper{})
+		resDB := tx.Clauses(clauses...).Where("state IN ? AND updated_at < ?", states, due).Delete(&Wrapper{})
 		if resDB.Error != nil {
 			return resDB.Error
 		}

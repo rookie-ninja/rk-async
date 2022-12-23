@@ -15,9 +15,9 @@ type Database interface {
 
 	GetJob(id string) (Job, error)
 
-	CancelJobsOverdue(days int) error
+	CancelJobsOverdue(days int, filter *JobFilter) error
 
-	CleanJobs(days int) error
+	CleanJobs(days int, filter *JobFilter) error
 }
 
 type UnmarshalerFunc func([]byte, *JobMeta) (Job, error)

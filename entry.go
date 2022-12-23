@@ -171,12 +171,12 @@ func (e *Entry) GetJob(id string) (Job, error) {
 	return e.db.GetJob(id)
 }
 
-func (e *Entry) CancelJobsOverdue(days int) error {
-	return e.db.CancelJobsOverdue(days)
+func (e *Entry) CancelJobsOverdue(days int, filter *JobFilter) error {
+	return e.db.CancelJobsOverdue(days, filter)
 }
 
-func (e *Entry) CleanJobs(days int) error {
-	return e.db.CleanJobs(days)
+func (e *Entry) CleanJobs(days int, filter *JobFilter) error {
+	return e.db.CleanJobs(days, filter)
 }
 
 func (e *Entry) RegisterJob(job Job) {
