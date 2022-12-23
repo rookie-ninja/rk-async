@@ -1,4 +1,4 @@
-package async
+package rkasync
 
 import (
 	"context"
@@ -133,6 +133,18 @@ func (e *Entry) String() string {
 
 	b, _ := json.Marshal(m)
 	return string(b)
+}
+
+func (e *Entry) StartWorker() {
+	if e.worker != nil {
+		e.worker.Start()
+	}
+}
+
+func (e *Entry) StopWorker() {
+	if e.worker != nil {
+		e.worker.Stop()
+	}
 }
 
 func (e *Entry) Worker() Worker {

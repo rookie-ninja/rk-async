@@ -1,4 +1,4 @@
-package async
+package rkasync
 
 import (
 	"context"
@@ -25,18 +25,15 @@ type JobMeta struct {
 	User     string `json:"user" yaml:"user" gorm:"index"`
 	Class    string `json:"class" yaml:"class" gorm:"index"`
 	Category string `json:"category" yaml:"category" gorm:"index"`
+
+	// error
+	Error string `json:"error" yaml:"error" gorm:"text"`
 }
 
 type Job interface {
-	Type() string
+	Process(context.Context) error
 
-	Start(context.Context) error
-
-	Cancel(context.Context) error
-
-	RecordError(err error)
-
-	GetMeta() *JobMeta
+	Meta() *JobMeta
 
 	Marshal() ([]byte, error)
 

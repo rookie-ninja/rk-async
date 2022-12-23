@@ -1,11 +1,17 @@
-package async
+package rkasync
 
 import (
 	"context"
 	"github.com/rookie-ninja/rk-entry/v2/entry"
+	rkquery "github.com/rookie-ninja/rk-query"
 	"go.uber.org/zap"
 	"sync"
 	"time"
+)
+
+const (
+	LoggerKey = "rk-async-logger"
+	EventKey  = "rk-async-event"
 )
 
 type Worker interface {
@@ -86,30 +92,39 @@ func (w *LocalWorker) processJob() {
 	defer event.Finish()
 	event.SetResCode("OK")
 
+	logger := w.logger.With(zap.String("id", job.Meta().Id),
+		zap.String("type", job.Meta().Type),
+		zap.String("user", job.Meta().User),
+		zap.String("class", job.Meta().Class),
+		zap.String("category", job.Meta().Category))
+
 	// process job & record error
-	err = job.Start(context.Background())
-	event.AddPair("jobType", job.Type())
-	event.AddPair("jobId", job.GetMeta().Id)
+	ctx := context.WithValue(context.Background(), LoggerKey, logger)
+	ctx = context.WithValue(ctx, EventKey, event)
+
+	err = job.Process(ctx)
+	event.AddPair("jobType", job.Meta().Type)
+	event.AddPair("jobId", job.Meta().Id)
 
 	if err != nil {
-		job.RecordError(err)
+		job.Meta().Error = err.Error()
 		event.AddErr(err)
 		event.SetResCode("Fail")
 
 		w.logger.Error("failed to process job",
-			zap.String("id", job.GetMeta().Id),
-			zap.String("type", job.GetMeta().Type),
-			zap.String("user", job.GetMeta().User),
-			zap.String("class", job.GetMeta().Class),
-			zap.String("category", job.GetMeta().Category))
+			zap.String("id", job.Meta().Id),
+			zap.String("type", job.Meta().Type),
+			zap.String("user", job.Meta().User),
+			zap.String("class", job.Meta().Class),
+			zap.String("category", job.Meta().Category))
 
 		if err := w.db.UpdateJobState(job, JobStateFailed); err != nil {
 			w.logger.Error("failed to update job state",
-				zap.String("id", job.GetMeta().Id),
-				zap.String("type", job.GetMeta().Type),
-				zap.String("user", job.GetMeta().User),
-				zap.String("class", job.GetMeta().Class),
-				zap.String("category", job.GetMeta().Category),
+				zap.String("id", job.Meta().Id),
+				zap.String("type", job.Meta().Type),
+				zap.String("user", job.Meta().User),
+				zap.String("class", job.Meta().Class),
+				zap.String("category", job.Meta().Category),
 				zap.String("state", JobStateFailed))
 			return
 		}
@@ -118,15 +133,41 @@ func (w *LocalWorker) processJob() {
 	// update DB
 	if err := w.db.UpdateJobState(job, JobStateSuccess); err != nil {
 		w.logger.Error("failed to update job state",
-			zap.String("id", job.GetMeta().Id),
-			zap.String("type", job.GetMeta().Type),
-			zap.String("user", job.GetMeta().User),
-			zap.String("class", job.GetMeta().Class),
-			zap.String("category", job.GetMeta().Category),
+			zap.String("id", job.Meta().Id),
+			zap.String("type", job.Meta().Type),
+			zap.String("user", job.Meta().User),
+			zap.String("class", job.Meta().Class),
+			zap.String("category", job.Meta().Category),
 			zap.String("state", JobStateSuccess))
 	}
 }
 
 func (w *LocalWorker) Database() Database {
 	return w.db
+}
+
+func GetLoggerFromCtx(ctx context.Context) *zap.Logger {
+	raw := ctx.Value(LoggerKey)
+	if raw == nil {
+		return rkentry.GlobalAppCtx.GetLoggerEntryDefault().Logger
+	}
+
+	if v, ok := raw.(*zap.Logger); ok {
+		return v
+	}
+
+	return rkentry.GlobalAppCtx.GetLoggerEntryDefault().Logger
+}
+
+func GetEventFromCtx(ctx context.Context) rkquery.Event {
+	raw := ctx.Value(EventKey)
+	if raw == nil {
+		return rkentry.GlobalAppCtx.GetEventEntryDefault().CreateEvent()
+	}
+
+	if v, ok := raw.(rkquery.Event); ok {
+		return v
+	}
+
+	return rkentry.GlobalAppCtx.GetEventEntryDefault().CreateEvent()
 }

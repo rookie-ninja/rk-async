@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
-	async "github.com/rookie-ninja/rk-async"
+	"github.com/rookie-ninja/rk-async"
 	_ "github.com/rookie-ninja/rk-async/database/mysql"
 	"github.com/rookie-ninja/rk-boot/v2"
+	"github.com/rookie-ninja/rk-gin/v2/boot"
 	_ "github.com/rookie-ninja/rk-gin/v2/boot"
-	rkgin "github.com/rookie-ninja/rk-gin/v2/boot"
-	rkginctx "github.com/rookie-ninja/rk-gin/v2/middleware/context"
+	"github.com/rookie-ninja/rk-gin/v2/middleware/context"
 	"go.uber.org/zap"
 	"net/http"
 )
@@ -21,7 +21,7 @@ func main() {
 	// Bootstrap
 	boot.Bootstrap(context.Background())
 
-	asyncEntry := async.GetEntry()
+	asyncEntry := rkasync.GetEntry()
 	asyncEntry.RegisterJob(NewDemoJob())
 	asyncEntry.Worker().Start()
 
@@ -80,7 +80,7 @@ func main() {
 
 func NewDemoJob() *DemoJob {
 	res := &DemoJob{}
-	res.JobMeta = &async.JobMeta{
+	res.JobMeta = &rkasync.JobMeta{
 		Type:     "DemoJob",
 		User:     "user",
 		Class:    "class",
@@ -93,38 +93,27 @@ func NewDemoJob() *DemoJob {
 type DemoJob struct {
 	Message string `json:"message"`
 	Error   string `json:"error"`
-	*async.JobMeta
+	*rkasync.JobMeta
 }
 
-func (d *DemoJob) Type() string {
-	return d.JobMeta.Type
-}
-
-func (d *DemoJob) Start(ctx context.Context) error {
+func (d *DemoJob) Process(ctx context.Context) error {
 	d.Message = "Started"
 	return nil
 }
 
-func (d *DemoJob) Cancel(ctx context.Context) error {
-	d.Message = "Canceled"
-	return nil
-}
-
-func (d *DemoJob) RecordError(err error) {
-	d.Error = err.Error()
-}
-
-func (d *DemoJob) GetMeta() *async.JobMeta {
+func (d *DemoJob) Meta() *rkasync.JobMeta {
 	return d.JobMeta
 }
 
-func (d *DemoJob) Unmarshal(b []byte, meta *async.JobMeta) (async.Job, error) {
-	if err := json.Unmarshal(b, d); err != nil {
+func (d *DemoJob) Unmarshal(b []byte, meta *rkasync.JobMeta) (rkasync.Job, error) {
+	res := &DemoJob{}
+
+	if err := json.Unmarshal(b, res); err != nil {
 		return nil, err
 	}
 
-	d.JobMeta = meta
-	return d, nil
+	res.JobMeta = meta
+	return res, nil
 }
 
 func (d *DemoJob) Marshal() ([]byte, error) {

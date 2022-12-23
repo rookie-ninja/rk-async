@@ -1,4 +1,4 @@
-package async
+package rkasync
 
 type Database interface {
 	Type() string

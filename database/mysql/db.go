@@ -12,10 +12,10 @@ import (
 )
 
 func init() {
-	async.RegisterDatabaseRegFunc("MySQL", RegisterDatabase)
+	rkasync.RegisterDatabaseRegFunc("MySQL", RegisterDatabase)
 }
 
-func RegisterDatabase(m map[string]string) async.Database {
+func RegisterDatabase(m map[string]string) rkasync.Database {
 	entry := rkmysql.GetMySqlEntry(m["entryName"])
 	if entry == nil {
 		return nil
@@ -32,7 +32,7 @@ func RegisterDatabase(m map[string]string) async.Database {
 
 	return &Database{
 		db:           db,
-		unmarshalerM: map[string]async.UnmarshalerFunc{},
+		unmarshalerM: map[string]rkasync.UnmarshalerFunc{},
 		lock:         &sync.Mutex{},
 	}
 }
@@ -40,21 +40,21 @@ func RegisterDatabase(m map[string]string) async.Database {
 type Database struct {
 	db           *gorm.DB
 	lock         sync.Locker
-	unmarshalerM map[string]async.UnmarshalerFunc
+	unmarshalerM map[string]rkasync.UnmarshalerFunc
 }
 
 func (e *Database) Type() string {
 	return "MySQL"
 }
 
-func (e *Database) RegisterJob(job async.Job) {
+func (e *Database) RegisterJob(job rkasync.Job) {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 
-	e.unmarshalerM[job.Type()] = job.Unmarshal
+	e.unmarshalerM[job.Meta().Type] = job.Unmarshal
 }
 
-func (e *Database) UnmarshalJob(b []byte, meta *async.JobMeta) (async.Job, error) {
+func (e *Database) UnmarshalJob(b []byte, meta *rkasync.JobMeta) (rkasync.Job, error) {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 
@@ -66,16 +66,16 @@ func (e *Database) UnmarshalJob(b []byte, meta *async.JobMeta) (async.Job, error
 	return unmar(b, meta)
 }
 
-func (e *Database) AddJob(job async.Job) error {
-	if job.GetMeta() == nil {
+func (e *Database) AddJob(job rkasync.Job) error {
+	if job.Meta() == nil {
 		return fmt.Errorf("nil job meta")
 	}
 
-	job.GetMeta().Id = xid.New().String()
-	job.GetMeta().State = async.JobStateCreated
+	job.Meta().Id = xid.New().String()
+	job.Meta().State = rkasync.JobStateCreated
 
 	wrapper := &Wrapper{
-		JobMeta: job.GetMeta(),
+		JobMeta: job.Meta(),
 	}
 
 	b, err := job.Marshal()
@@ -90,12 +90,12 @@ func (e *Database) AddJob(job async.Job) error {
 	return resDB.Error
 }
 
-func (e *Database) PickJobToWork() (async.Job, error) {
-	var res async.Job
+func (e *Database) PickJobToWork() (rkasync.Job, error) {
+	var res rkasync.Job
 	err := e.db.Transaction(func(tx *gorm.DB) error {
 		// get job with state created
 		wrap := &Wrapper{}
-		resDB := tx.Where("state = ?", async.JobStateCreated).Limit(1).Find(wrap)
+		resDB := tx.Where("state = ?", rkasync.JobStateCreated).Limit(1).Find(wrap)
 
 		if resDB.Error != nil {
 			return resDB.Error
@@ -105,7 +105,7 @@ func (e *Database) PickJobToWork() (async.Job, error) {
 			return nil
 		}
 
-		wrap.JobMeta.State = async.JobStateRunning
+		wrap.JobMeta.State = rkasync.JobStateRunning
 		wrap.JobMeta.UpdatedAt = time.Now()
 
 		// update state for job structure
@@ -126,7 +126,7 @@ func (e *Database) PickJobToWork() (async.Job, error) {
 			return resDB.Error
 		}
 		if resDB.RowsAffected < 1 {
-			return fmt.Errorf("failed to update job state, id:%s, state:%s", wrap.Id, async.JobStateRunning)
+			return fmt.Errorf("failed to update job state, id:%s, state:%s", wrap.Id, rkasync.JobStateRunning)
 		}
 
 		res = job
@@ -137,16 +137,16 @@ func (e *Database) PickJobToWork() (async.Job, error) {
 	return res, err
 }
 
-func (e *Database) UpdateJobState(job async.Job, state string) error {
+func (e *Database) UpdateJobState(job rkasync.Job, state string) error {
 	err := e.db.Transaction(func(tx *gorm.DB) error {
-		if !async.JobNewStateAllowed(job.GetMeta().State, state) {
-			return fmt.Errorf("job state mutation not allowed by policy, %s->%s", job.GetMeta().State, state)
+		if !rkasync.JobNewStateAllowed(job.Meta().State, state) {
+			return fmt.Errorf("job state mutation not allowed by policy, %s->%s", job.Meta().State, state)
 		}
 
-		job.GetMeta().State = state
+		job.Meta().State = state
 
 		wrap := &Wrapper{
-			JobMeta: job.GetMeta(),
+			JobMeta: job.Meta(),
 		}
 
 		// update in DB
@@ -161,7 +161,7 @@ func (e *Database) UpdateJobState(job async.Job, state string) error {
 			return resDB.Error
 		}
 		if resDB.RowsAffected < 1 {
-			return fmt.Errorf("failed to update job state, id:%s, state:%s", job.GetMeta().Id, state)
+			return fmt.Errorf("failed to update job state, id:%s, state:%s", job.Meta().Id, state)
 		}
 
 		return nil
@@ -171,7 +171,7 @@ func (e *Database) UpdateJobState(job async.Job, state string) error {
 
 // TODO: Paginator
 
-func (e *Database) ListJobs(filter *async.JobFilter) ([]async.Job, error) {
+func (e *Database) ListJobs(filter *rkasync.JobFilter) ([]rkasync.Job, error) {
 	clauses := make([]clause.Expression, 0)
 
 	if filter != nil {
@@ -211,14 +211,14 @@ func (e *Database) ListJobs(filter *async.JobFilter) ([]async.Job, error) {
 		return nil, resDB.Error
 	}
 
-	res := make([]async.Job, 0)
+	res := make([]rkasync.Job, 0)
 
 	for i := range jobList {
 		wrap := jobList[i]
 
 		job, err := e.UnmarshalJob([]byte(wrap.JobRaw), wrap.JobMeta)
 		if err != nil {
-			return nil, err
+			continue
 		}
 
 		res = append(res, job)
@@ -227,7 +227,7 @@ func (e *Database) ListJobs(filter *async.JobFilter) ([]async.Job, error) {
 	return res, nil
 }
 
-func (e *Database) GetJob(id string) (async.Job, error) {
+func (e *Database) GetJob(id string) (rkasync.Job, error) {
 	wrap := &Wrapper{}
 
 	resDB := e.db.Where("id = ?", id).Find(&wrap)
@@ -246,7 +246,7 @@ func (e *Database) CancelJobsOverdue(days int) error {
 		due := time.Now().AddDate(0, 0, -days)
 
 		resDB := tx.Model(&Wrapper{}).Where("state = ? AND updated_at < ?",
-			async.JobStateRunning, due).Update("state", async.JobStateCanceled)
+			rkasync.JobStateRunning, due).Update("state", rkasync.JobStateCanceled)
 		if resDB.Error != nil {
 			return resDB.Error
 		}
@@ -262,7 +262,7 @@ func (e *Database) CleanJobs(days int) error {
 		due := time.Now().AddDate(0, 0, -days)
 
 		states := []string{
-			async.JobStateFailed, async.JobStateSuccess, async.JobStateCanceled,
+			rkasync.JobStateFailed, rkasync.JobStateSuccess, rkasync.JobStateCanceled,
 		}
 
 		resDB := tx.Where("state IN ? AND updated_at < ?", states, due).Delete(&Wrapper{})
@@ -277,7 +277,7 @@ func (e *Database) CleanJobs(days int) error {
 }
 
 type Wrapper struct {
-	*async.JobMeta
+	*rkasync.JobMeta
 	JobRaw string `json:"-" yaml:"-" gorm:"longtext"`
 }
 
