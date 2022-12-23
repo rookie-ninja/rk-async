@@ -1,4 +1,4 @@
-module github.com/rookie-ninja/async/database/mysql
+module github.com/rookie-ninja/rk-async/database/mysql
 
 go 1.19
 
