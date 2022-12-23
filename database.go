@@ -3,6 +3,8 @@ package async
 type Database interface {
 	Type() string
 
+	RegisterJob(job Job)
+
 	AddJob(job Job) error
 
 	PickJobToWork() (Job, error)
@@ -16,11 +18,9 @@ type Database interface {
 	CancelJobsOverdue(days int) error
 
 	CleanJobs(days int) error
-
-	RegisterMarshaller(string, func(Job) ([]byte, error))
-
-	RegisterUnmarshaler(string, func([]byte) (Job, error))
 }
+
+type UnmarshalerFunc func([]byte, *JobMeta) (Job, error)
 
 func NewJobFilter() *JobFilter {
 	return &JobFilter{

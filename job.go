@@ -28,6 +28,8 @@ type JobMeta struct {
 }
 
 type Job interface {
+	Type() string
+
 	Start(context.Context) error
 
 	Cancel(context.Context) error
@@ -36,9 +38,9 @@ type Job interface {
 
 	GetMeta() *JobMeta
 
-	MarshalFunc() func(Job) ([]byte, error)
+	Marshal() ([]byte, error)
 
-	UnmarshalFunc() func([]byte) (Job, error)
+	Unmarshal([]byte, *JobMeta) (Job, error)
 }
 
 func JobNewStateAllowed(oldState, newState string) bool {

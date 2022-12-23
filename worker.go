@@ -18,9 +18,13 @@ type Worker interface {
 
 func NewLocalWorker(db Database, logger *rkentry.LoggerEntry, event *rkentry.EventEntry) *LocalWorker {
 	return &LocalWorker{
-		db:     db,
-		logger: logger,
-		event:  event,
+		db:          db,
+		lock:        sync.Mutex{},
+		once:        sync.Once{},
+		waitGroup:   sync.WaitGroup{},
+		quitChannel: make(chan struct{}),
+		logger:      logger,
+		event:       event,
 	}
 }
 
@@ -68,25 +72,25 @@ func (w *LocalWorker) Stop() {
 }
 
 func (w *LocalWorker) processJob() {
-	event := w.event.Start("processJob")
-	defer event.Finish()
-	event.SetResCode("OK")
-
 	// pick a job
 	job, err := w.db.PickJobToWork()
 	if err != nil {
 		w.logger.Error("failed to pick job", zap.Error(err))
-		event.AddErr(err)
-		event.SetResCode("Fail")
 		return
 	}
 	if job == nil {
-		event.IncCounter("jobEmpty", 1)
 		return
 	}
 
+	event := w.event.Start("processJob")
+	defer event.Finish()
+	event.SetResCode("OK")
+
 	// process job & record error
 	err = job.Start(context.Background())
+	event.AddPair("jobType", job.Type())
+	event.AddPair("jobId", job.GetMeta().Id)
+
 	if err != nil {
 		job.RecordError(err)
 		event.AddErr(err)

@@ -3,6 +3,7 @@ package async
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/rookie-ninja/rk-entry/v2/entry"
 )
 
@@ -13,6 +14,19 @@ func init() {
 var (
 	dbRegFuncM = map[string]func(map[string]string) Database{}
 )
+
+func GetEntry() *Entry {
+	res := rkentry.GlobalAppCtx.GetEntry("RkAsyncEntry", "rk-async-entry")
+	if res == nil {
+		return nil
+	}
+
+	if v, ok := res.(*Entry); ok {
+		return v
+	}
+
+	return nil
+}
 
 func RegisterDatabaseRegFunc(dbType string, f func(map[string]string) Database) {
 	dbRegFuncM[dbType] = f
@@ -27,49 +41,8 @@ func RegisterEntriesFromConfig(raw []byte) map[string]rkentry.Entry {
 
 	// 3: construct entry
 	if config.Async.Enabled {
-		var db Database
-		var dbAddr string
-		if config.Async.Database.MySql.Enabled {
-			f := dbRegFuncM["MySQL"]
-			db = f(map[string]string{
-				"entryName": config.Async.Database.MySql.EntryName,
-				"database":  config.Async.Database.MySql.Database,
-			})
-		}
-
-		if db == nil {
-			return res
-		}
-
-		// logger
-		logger := rkentry.GlobalAppCtx.GetLoggerEntry(config.Async.Logger)
-		if logger == nil {
-			logger = rkentry.GlobalAppCtx.GetLoggerEntryDefault()
-		}
-
-		// event
-		event := rkentry.GlobalAppCtx.GetEventEntry(config.Async.Event)
-		if event == nil {
-			event = rkentry.GlobalAppCtx.GetEventEntryDefault()
-		}
-
-		// worker
-		var worker Worker
-		if config.Async.Worker.Local.Enabled {
-			worker = &LocalWorker{
-				db:     db,
-				logger: logger,
-				event:  event,
-			}
-		}
-
 		entry := &Entry{
-			db:     db,
-			dbAddr: dbAddr,
-			server: &Server{
-				db: db,
-			},
-			worker: worker,
+			config: config,
 		}
 		res[entry.GetName()] = entry
 		rkentry.GlobalAppCtx.AddEntry(entry)
@@ -99,13 +72,42 @@ type BootConfig struct {
 
 type Entry struct {
 	db     Database
-	dbAddr string
+	config *BootConfig
 	worker Worker
-	server *Server
 }
 
 func (e *Entry) Bootstrap(ctx context.Context) {
-	e.worker.Start()
+	var db Database
+	if e.config.Async.Database.MySql.Enabled {
+		f := dbRegFuncM["MySQL"]
+		db = f(map[string]string{
+			"entryName": e.config.Async.Database.MySql.EntryName,
+			"database":  e.config.Async.Database.MySql.Database,
+		})
+	}
+
+	if db == nil {
+		rkentry.ShutdownWithError(errors.New("db is nil"))
+	}
+
+	e.db = db
+
+	// logger
+	logger := rkentry.GlobalAppCtx.GetLoggerEntry(e.config.Async.Logger)
+	if logger == nil {
+		logger = rkentry.GlobalAppCtx.GetLoggerEntryDefault()
+	}
+
+	// event
+	event := rkentry.GlobalAppCtx.GetEventEntry(e.config.Async.Event)
+	if event == nil {
+		event = rkentry.GlobalAppCtx.GetEventEntryDefault()
+	}
+
+	// worker
+	if e.config.Async.Worker.Local.Enabled {
+		e.worker = NewLocalWorker(db, logger, event)
+	}
 }
 
 func (e *Entry) Interrupt(ctx context.Context) {
@@ -127,7 +129,6 @@ func (e *Entry) GetDescription() string {
 func (e *Entry) String() string {
 	m := map[string]interface{}{
 		"dbType": e.db.Type(),
-		"dbAddr": e.dbAddr,
 	}
 
 	b, _ := json.Marshal(m)
@@ -138,6 +139,34 @@ func (e *Entry) Worker() Worker {
 	return e.worker
 }
 
-func (e *Entry) Server() *Server {
-	return e.server
+func (e *Entry) Database() Database {
+	return e.db
+}
+
+func (e *Entry) AddJob(job Job) error {
+	return e.db.AddJob(job)
+}
+
+func (e *Entry) UpdateJobState(job Job, state string) error {
+	return e.db.UpdateJobState(job, state)
+}
+
+func (e *Entry) ListJobs(filter *JobFilter) ([]Job, error) {
+	return e.db.ListJobs(filter)
+}
+
+func (e *Entry) GetJob(id string) (Job, error) {
+	return e.db.GetJob(id)
+}
+
+func (e *Entry) CancelJobsOverdue(days int) error {
+	return e.db.CancelJobsOverdue(days)
+}
+
+func (e *Entry) CleanJobs(days int) error {
+	return e.db.CleanJobs(days)
+}
+
+func (e *Entry) RegisterJob(job Job) {
+	e.db.RegisterJob(job)
 }

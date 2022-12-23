@@ -31,21 +31,39 @@ func RegisterDatabase(m map[string]string) async.Database {
 	}
 
 	return &Database{
-		db:         db,
-		marshalF:   map[string]func(async.Job) ([]byte, error){},
-		unmarshalF: map[string]func([]byte) (async.Job, error){},
+		db:           db,
+		unmarshalerM: map[string]async.UnmarshalerFunc{},
+		lock:         &sync.Mutex{},
 	}
 }
 
 type Database struct {
-	db         *gorm.DB
-	lock       sync.Locker
-	marshalF   map[string]func(async.Job) ([]byte, error)
-	unmarshalF map[string]func([]byte) (async.Job, error)
+	db           *gorm.DB
+	lock         sync.Locker
+	unmarshalerM map[string]async.UnmarshalerFunc
 }
 
 func (e *Database) Type() string {
 	return "MySQL"
+}
+
+func (e *Database) RegisterJob(job async.Job) {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+
+	e.unmarshalerM[job.Type()] = job.Unmarshal
+}
+
+func (e *Database) UnmarshalJob(b []byte, meta *async.JobMeta) (async.Job, error) {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+
+	unmar, ok := e.unmarshalerM[meta.Type]
+	if !ok {
+		return nil, fmt.Errorf("unsupported job type %s, please register job first", meta.Type)
+	}
+
+	return unmar(b, meta)
 }
 
 func (e *Database) AddJob(job async.Job) error {
@@ -60,12 +78,7 @@ func (e *Database) AddJob(job async.Job) error {
 		JobMeta: job.GetMeta(),
 	}
 
-	mar := e.getMarshaller(job.GetMeta().Type)
-	if mar == nil {
-		return fmt.Errorf("nil job marshaller")
-	}
-
-	b, err := mar(job)
+	b, err := job.Marshal()
 	if err != nil {
 		return err
 	}
@@ -78,92 +91,72 @@ func (e *Database) AddJob(job async.Job) error {
 }
 
 func (e *Database) PickJobToWork() (async.Job, error) {
-	var job async.Job
+	var res async.Job
 	err := e.db.Transaction(func(tx *gorm.DB) error {
 		// get job with state created
-		createdJob := &Wrapper{}
-		resDB := tx.Where("state = ?", async.JobStateCreated).Limit(1).Find(createdJob)
+		wrap := &Wrapper{}
+		resDB := tx.Where("state = ?", async.JobStateCreated).Limit(1).Find(wrap)
+
+		if resDB.Error != nil {
+			return resDB.Error
+		}
+
+		if resDB.RowsAffected < 1 {
+			return nil
+		}
+
+		wrap.JobMeta.State = async.JobStateRunning
+		wrap.JobMeta.UpdatedAt = time.Now()
 
 		// update state for job structure
-		unmar := e.getUnmarshaler(createdJob.Type)
-		if unmar == nil {
-			return fmt.Errorf("nil job unmarshaler")
-		}
-
-		unMarJob, err := unmar([]byte(createdJob.JobRaw))
+		job, err := e.UnmarshalJob([]byte(wrap.JobRaw), wrap.JobMeta)
 		if err != nil {
 			return err
 		}
-
-		unMarJob.GetMeta().State = async.JobStateRunning
-		unMarJob.GetMeta().UpdatedAt = time.Now()
 
 		// update in DB
-		createdJob.JobMeta = unMarJob.GetMeta()
-		mar := e.getMarshaller(createdJob.Type)
-		b, err := mar(unMarJob)
+		b, err := job.Marshal()
 		if err != nil {
 			return err
 		}
-		createdJob.JobRaw = string(b)
+		wrap.JobRaw = string(b)
 
-		resDB = tx.Updates(createdJob)
+		resDB = tx.Updates(wrap)
 		if resDB.Error != nil {
 			return resDB.Error
 		}
 		if resDB.RowsAffected < 1 {
-			return fmt.Errorf("failed to update job state, id:%s, state:%s", createdJob.Id, async.JobStateRunning)
+			return fmt.Errorf("failed to update job state, id:%s, state:%s", wrap.Id, async.JobStateRunning)
 		}
 
-		job = unMarJob
+		res = job
 
 		return nil
 	})
 
-	return job, err
+	return res, err
 }
 
 func (e *Database) UpdateJobState(job async.Job, state string) error {
 	err := e.db.Transaction(func(tx *gorm.DB) error {
-		oldJob := &Wrapper{}
-
-		resDB := tx.Where("id = ?", job.GetMeta().Id).Find(oldJob)
-		if resDB.Error != nil {
-			return resDB.Error
+		if !async.JobNewStateAllowed(job.GetMeta().State, state) {
+			return fmt.Errorf("job state mutation not allowed by policy, %s->%s", job.GetMeta().State, state)
 		}
 
-		if resDB.RowsAffected < 1 {
-			return fmt.Errorf("job with %s not found", job.GetMeta().Id)
-		}
+		job.GetMeta().State = state
 
-		if !async.JobNewStateAllowed(oldJob.State, state) {
-			return fmt.Errorf("job state mutation not allowed by policy, %s->%s", oldJob.State, state)
+		wrap := &Wrapper{
+			JobMeta: job.GetMeta(),
 		}
-
-		// update state for job structure
-		unmar := e.getUnmarshaler(oldJob.Type)
-		if unmar == nil {
-			return fmt.Errorf("nil job unmarshaler")
-		}
-
-		unMarJob, err := unmar([]byte(oldJob.JobRaw))
-		if err != nil {
-			return err
-		}
-
-		unMarJob.GetMeta().State = state
-		unMarJob.GetMeta().UpdatedAt = time.Now()
 
 		// update in DB
-		oldJob.JobMeta = unMarJob.GetMeta()
-		mar := e.getMarshaller(oldJob.Type)
-		b, err := mar(unMarJob)
+		b, err := job.Marshal()
 		if err != nil {
 			return err
 		}
-		oldJob.JobRaw = string(b)
+		wrap.JobRaw = string(b)
 
-		resDB = tx.Updates(oldJob)
+		resDB := tx.Updates(wrap)
 		if resDB.Error != nil {
 			return resDB.Error
 		}
@@ -223,20 +216,12 @@ func (e *Database) ListJobs(filter *async.JobFilter) ([]async.Job, error) {
 	for i := range jobList {
 		wrap := jobList[i]
 
-		unmar := e.getUnmarshaler(wrap.Type)
-		if unmar == nil {
-			return nil, fmt.Errorf("nil job unmarshaler")
-		}
-
-		unMarJob, err := unmar([]byte(wrap.JobRaw))
+		job, err := e.UnmarshalJob([]byte(wrap.JobRaw), wrap.JobMeta)
 		if err != nil {
 			return nil, err
 		}
 
-		unMarJob.GetMeta().State = wrap.State
-		unMarJob.GetMeta().UpdatedAt = wrap.UpdatedAt
-
-		res = append(res, unMarJob)
+		res = append(res, job)
 	}
 
 	return res, nil
@@ -253,20 +238,7 @@ func (e *Database) GetJob(id string) (async.Job, error) {
 		return nil, fmt.Errorf("job not found with id=%s", id)
 	}
 
-	unmar := e.getUnmarshaler(wrap.Type)
-	if unmar == nil {
-		return nil, fmt.Errorf("nil job unmarshaler")
-	}
-
-	unMarJob, err := unmar([]byte(wrap.JobRaw))
-	if err != nil {
-		return nil, err
-	}
-
-	unMarJob.GetMeta().State = wrap.State
-	unMarJob.GetMeta().UpdatedAt = wrap.UpdatedAt
-
-	return unMarJob, nil
+	return e.UnmarshalJob([]byte(wrap.JobRaw), wrap.JobMeta)
 }
 
 func (e *Database) CancelJobsOverdue(days int) error {
@@ -293,7 +265,7 @@ func (e *Database) CleanJobs(days int) error {
 			async.JobStateFailed, async.JobStateSuccess, async.JobStateCanceled,
 		}
 
-		resDB := tx.Model(&Wrapper{}).Delete("state IN ? AND updated_at < ?", states, due)
+		resDB := tx.Where("state IN ? AND updated_at < ?", states, due).Delete(&Wrapper{})
 		if resDB.Error != nil {
 			return resDB.Error
 		}
@@ -302,34 +274,6 @@ func (e *Database) CleanJobs(days int) error {
 	})
 
 	return err
-}
-
-func (e *Database) RegisterMarshaller(jobType string, f func(async.Job) ([]byte, error)) {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-
-	e.marshalF[jobType] = f
-}
-
-func (e *Database) RegisterUnmarshaler(jobType string, f func([]byte) (async.Job, error)) {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-
-	e.unmarshalF[jobType] = f
-}
-
-func (e *Database) getMarshaller(jobType string) func(async.Job) ([]byte, error) {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-
-	return e.marshalF[jobType]
-}
-
-func (e *Database) getUnmarshaler(jobType string) func([]byte) (async.Job, error) {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-
-	return e.unmarshalF[jobType]
 }
 
 type Wrapper struct {

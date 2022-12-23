@@ -1,4 +1,4 @@
-module gituhb.com/rookie-ninja/rk-async
+module github.com/rookie-ninja/rk-async
 
 go 1.19
 
