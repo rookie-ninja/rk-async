@@ -26,11 +26,12 @@ func NewLocalWorker(db Database, logger *rkentry.LoggerEntry, event *rkentry.Eve
 	return &LocalWorker{
 		db:          db,
 		lock:        sync.Mutex{},
-		once:        sync.Once{},
 		waitGroup:   sync.WaitGroup{},
 		quitChannel: make(chan struct{}),
 		logger:      logger,
 		event:       event,
+		startOnce:   sync.Once{},
+		stopOnce:    sync.Once{},
 	}
 }
 
@@ -39,42 +40,45 @@ type LocalWorker struct {
 	quitChannel chan struct{}
 	waitGroup   sync.WaitGroup
 	lock        sync.Mutex
-	once        sync.Once
+	startOnce   sync.Once
+	stopOnce    sync.Once
 
 	logger *rkentry.LoggerEntry
 	event  *rkentry.EventEntry
 }
 
 func (w *LocalWorker) Start() {
-	w.once.Do(func() {
+	w.startOnce.Do(func() {
 		w.waitGroup.Add(1)
-	})
 
-	go func() {
-		waitChannel := time.NewTimer(time.Duration(1) * time.Second)
+		go func() {
+			waitChannel := time.NewTimer(time.Duration(1) * time.Second)
 
-		defer func() {
-			w.waitGroup.Done()
-		}()
+			defer func() {
+				w.waitGroup.Done()
+			}()
 
-		for {
-			select {
-			case <-w.quitChannel:
-				return
-			case <-waitChannel.C:
-				w.processJob()
-				waitChannel.Reset(time.Duration(1) * time.Second)
-			default:
-				w.processJob()
-				time.Sleep(time.Duration(1) * time.Second)
+			for {
+				select {
+				case <-w.quitChannel:
+					return
+				case <-waitChannel.C:
+					w.processJob()
+					waitChannel.Reset(time.Duration(1) * time.Second)
+				default:
+					w.processJob()
+					time.Sleep(time.Duration(1) * time.Second)
+				}
 			}
-		}
-	}()
+		}()
+	})
 }
 
 func (w *LocalWorker) Stop() {
-	close(w.quitChannel)
-	w.waitGroup.Wait()
+	w.stopOnce.Do(func() {
+		close(w.quitChannel)
+		w.waitGroup.Wait()
+	})
 }
 
 func (w *LocalWorker) processJob() {

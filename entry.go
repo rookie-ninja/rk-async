@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/rookie-ninja/rk-entry/v2/entry"
+	"sync"
 )
 
 func init() {
@@ -42,7 +43,8 @@ func RegisterEntriesFromConfig(raw []byte) map[string]rkentry.Entry {
 	// 3: construct entry
 	if config.Async.Enabled {
 		entry := &Entry{
-			config: config,
+			config:        config,
+			bootstrapOnce: sync.Once{},
 		}
 		res[entry.GetName()] = entry
 		rkentry.GlobalAppCtx.AddEntry(entry)
@@ -71,48 +73,49 @@ type BootConfig struct {
 }
 
 type Entry struct {
-	db     Database
-	config *BootConfig
-	worker Worker
+	db            Database
+	config        *BootConfig
+	worker        Worker
+	bootstrapOnce sync.Once
 }
 
 func (e *Entry) Bootstrap(ctx context.Context) {
-	var db Database
-	if e.config.Async.Database.MySql.Enabled {
-		f := dbRegFuncM["MySQL"]
-		db = f(map[string]string{
-			"entryName": e.config.Async.Database.MySql.EntryName,
-			"database":  e.config.Async.Database.MySql.Database,
-		})
-	}
+	e.bootstrapOnce.Do(func() {
+		var db Database
+		if e.config.Async.Database.MySql.Enabled {
+			f := dbRegFuncM["MySQL"]
+			db = f(map[string]string{
+				"entryName": e.config.Async.Database.MySql.EntryName,
+				"database":  e.config.Async.Database.MySql.Database,
+			})
+		}
 
-	if db == nil {
-		rkentry.ShutdownWithError(errors.New("db is nil"))
-	}
+		if db == nil {
+			rkentry.ShutdownWithError(errors.New("db is nil"))
+		}
 
-	e.db = db
+		e.db = db
 
-	// logger
-	logger := rkentry.GlobalAppCtx.GetLoggerEntry(e.config.Async.Logger)
-	if logger == nil {
-		logger = rkentry.GlobalAppCtx.GetLoggerEntryDefault()
-	}
+		// logger
+		logger := rkentry.GlobalAppCtx.GetLoggerEntry(e.config.Async.Logger)
+		if logger == nil {
+			logger = rkentry.GlobalAppCtx.GetLoggerEntryDefault()
+		}
 
-	// event
-	event := rkentry.GlobalAppCtx.GetEventEntry(e.config.Async.Event)
-	if event == nil {
-		event = rkentry.GlobalAppCtx.GetEventEntryDefault()
-	}
+		// event
+		event := rkentry.GlobalAppCtx.GetEventEntry(e.config.Async.Event)
+		if event == nil {
+			event = rkentry.GlobalAppCtx.GetEventEntryDefault()
+		}
 
-	// worker
-	if e.config.Async.Worker.Local.Enabled {
-		e.worker = NewLocalWorker(db, logger, event)
-	}
+		// worker
+		if e.config.Async.Worker.Local.Enabled {
+			e.worker = NewLocalWorker(db, logger, event)
+		}
+	})
 }
 
-func (e *Entry) Interrupt(ctx context.Context) {
-	e.worker.Stop()
-}
+func (e *Entry) Interrupt(ctx context.Context) {}
 
 func (e *Entry) GetName() string {
 	return "rk-async-entry"
