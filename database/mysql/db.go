@@ -161,7 +161,7 @@ func (e *Database) UpdateJobState(job rkasync.Job, state string) error {
 			return resDB.Error
 		}
 		if resDB.RowsAffected < 1 {
-			return fmt.Errorf("failed to update job state, id:%s, state:%s", job.Meta().Id, state)
+			return fmt.Errorf("failed to update job state, no rows updated, id:%s, state:%s", job.Meta().Id, state)
 		}
 
 		return nil

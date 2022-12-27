@@ -120,7 +120,8 @@ func (w *LocalWorker) processJob() {
 			zap.String("type", job.Meta().Type),
 			zap.String("user", job.Meta().User),
 			zap.String("class", job.Meta().Class),
-			zap.String("category", job.Meta().Category))
+			zap.String("category", job.Meta().Category),
+			zap.Error(err))
 
 		if err := w.db.UpdateJobState(job, JobStateFailed); err != nil {
 			w.logger.Error("failed to update job state",
@@ -129,9 +130,11 @@ func (w *LocalWorker) processJob() {
 				zap.String("user", job.Meta().User),
 				zap.String("class", job.Meta().Class),
 				zap.String("category", job.Meta().Category),
-				zap.String("state", JobStateFailed))
+				zap.String("state", JobStateFailed),
+				zap.Error(err))
 			return
 		}
+		return
 	}
 
 	// update DB
