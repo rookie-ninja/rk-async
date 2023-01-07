@@ -63,6 +63,11 @@ type BootConfig struct {
 				EntryName string `json:"entryName" yaml:"entryName"`
 				Database  string `json:"database" yaml:"database"`
 			} `yaml:"mySql" json:"mySql"`
+			Postgres struct {
+				Enabled   bool   `json:"enabled" yaml:"enabled"`
+				EntryName string `json:"entryName" yaml:"entryName"`
+				Database  string `json:"database" yaml:"database"`
+			} `yaml:"postgres" json:"postgres"`
 		} `yaml:"database" json:"database"`
 		Worker struct {
 			Local struct {
@@ -87,6 +92,14 @@ func (e *Entry) Bootstrap(ctx context.Context) {
 			db = f(map[string]string{
 				"entryName": e.config.Async.Database.MySql.EntryName,
 				"database":  e.config.Async.Database.MySql.Database,
+			})
+		}
+
+		if e.config.Async.Database.Postgres.Enabled {
+			f := dbRegFuncM["PostgreSQL"]
+			db = f(map[string]string{
+				"entryName": e.config.Async.Database.Postgres.EntryName,
+				"database":  e.config.Async.Database.Postgres.Database,
 			})
 		}
 
