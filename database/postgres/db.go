@@ -174,6 +174,8 @@ func (e *Database) UpdateJobState(job rkasync.Job, state string) error {
 func (e *Database) ListJobs(filter *rkasync.JobFilter) ([]rkasync.Job, error) {
 	clauses := make([]clause.Expression, 0)
 
+	limit := 10000
+
 	if filter != nil {
 		for i := range filter.TypeList {
 			clauses = append(clauses, clause.Eq{
@@ -202,11 +204,12 @@ func (e *Database) ListJobs(filter *rkasync.JobFilter) ([]rkasync.Job, error) {
 				Value:  filter.CategoryList[i],
 			})
 		}
+		limit = filter.Limit
 	}
 
 	jobList := make([]*Wrapper, 0)
 
-	resDB := e.db.Clauses(clauses...).Distinct().Find(&jobList)
+	resDB := e.db.Clauses(clauses...).Distinct().Limit(limit).Order("updated_at desc").Find(&jobList)
 	if resDB.Error != nil {
 		return nil, resDB.Error
 	}

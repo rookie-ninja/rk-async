@@ -36,6 +36,7 @@ type JobFilter struct {
 	UserList     []string
 	ClassList    []string
 	CategoryList []string
+	Limit        int
 }
 
 func (f *JobFilter) AddType(in string) {
