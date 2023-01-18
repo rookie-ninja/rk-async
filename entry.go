@@ -171,19 +171,19 @@ func (e *Entry) Database() Database {
 	return e.db
 }
 
-func (e *Entry) AddJob(job Job) error {
+func (e *Entry) AddJob(job *Job) error {
 	return e.db.AddJob(job)
 }
 
-func (e *Entry) UpdateJobState(job Job, state string) error {
+func (e *Entry) UpdateJobState(job *Job, state string) error {
 	return e.db.UpdateJobState(job, state)
 }
 
-func (e *Entry) ListJobs(filter *JobFilter) ([]Job, error) {
+func (e *Entry) ListJobs(filter *JobFilter) ([]*Job, error) {
 	return e.db.ListJobs(filter)
 }
 
-func (e *Entry) GetJob(id string) (Job, error) {
+func (e *Entry) GetJob(id string) (*Job, error) {
 	return e.db.GetJob(id)
 }
 
@@ -193,8 +193,4 @@ func (e *Entry) CancelJobsOverdue(days int, filter *JobFilter) error {
 
 func (e *Entry) CleanJobs(days int, filter *JobFilter) error {
 	return e.db.CleanJobs(days, filter)
-}
-
-func (e *Entry) RegisterJob(job Job) {
-	e.db.RegisterJob(job)
 }

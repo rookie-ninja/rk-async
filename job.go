@@ -2,6 +2,8 @@ package rkasync
 
 import (
 	"context"
+	"fmt"
+	"gorm.io/datatypes"
 	"time"
 )
 
@@ -13,7 +15,7 @@ const (
 	JobStateFailed   = "failed"
 )
 
-type JobMeta struct {
+type Job struct {
 	// do not edit
 	Id        string    `json:"id" yaml:"id" gorm:"primaryKey"`
 	State     string    `json:"state" yaml:"state" gorm:"index"`
@@ -21,23 +23,49 @@ type JobMeta struct {
 	UpdatedAt time.Time `yaml:"updatedAt" json:"updatedAt" attr:"-"`
 
 	// edit
-	Type     string `json:"type" yaml:"type" gorm:"index"`
-	User     string `json:"user" yaml:"user" gorm:"index"`
-	Class    string `json:"class" yaml:"class" gorm:"index"`
-	Category string `json:"category" yaml:"category" gorm:"index"`
+	Type   string `json:"type" yaml:"type" gorm:"index"`
+	UserId string `json:"userId" yaml:"userId" gorm:"index"`
 
-	// error
-	Error string `json:"error" yaml:"error" gorm:"text"`
+	Filter string `json:"filter" yaml:"filter" gorm:"text"`
+
+	Steps   datatypes.JSONType[[]*Step]     `json:"steps" yaml:"steps"`
+	Payload datatypes.JSONType[interface{}] `json:"payload" yaml:"payload"`
 }
 
-type Job interface {
-	Process(context.Context) error
+func (j *Job) TableName() string {
+	return "rk_async_job"
+}
 
-	Meta() *JobMeta
+type Step struct {
+	Index      int       `json:"index" yaml:"index"`
+	Name       string    `json:"id" yaml:"id"`
+	State      string    `json:"state" yaml:"state"`
+	StartedAt  time.Time `yaml:"startedAt" json:"startedAt"`
+	UpdatedAt  time.Time `yaml:"updatedAt" json:"updatedAt"`
+	ElapsedSec float64   `yaml:"elapsedSec" json:"elapsedSec"`
+	Output     []string  `yaml:"output" json:"output"`
+}
 
-	Marshal() ([]byte, error)
+func (s *Step) SuccessOutput(output string, startTime time.Time) {
+	s.UpdatedAt = time.Now()
+	s.Output = append(s.Output, fmt.Sprintf("%s, elapsedSec:%.2f", output, s.UpdatedAt.Sub(startTime).Seconds()))
+}
 
-	Unmarshal([]byte, *JobMeta) (Job, error)
+func (s *Step) FailedOutput(output string, startTime time.Time) {
+	s.UpdatedAt = time.Now()
+	s.State = JobStateFailed
+	s.Output = append(s.Output, fmt.Sprintf("%s, elapsedSec:%.2f", output, s.UpdatedAt.Sub(startTime).Seconds()))
+}
+
+func (s *Step) Finish() {
+	s.UpdatedAt = time.Now()
+	s.ElapsedSec = s.UpdatedAt.Sub(s.StartedAt).Seconds()
+}
+
+type UpdateJobFunc func(j *Job, state string) error
+
+type Processor interface {
+	Process(context.Context, *Job, UpdateJobFunc) error
 }
 
 func JobNewStateAllowed(oldState, newState string) bool {

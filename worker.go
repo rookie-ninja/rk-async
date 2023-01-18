@@ -96,40 +96,38 @@ func (w *LocalWorker) processJob() {
 	defer event.Finish()
 	event.SetResCode("OK")
 
-	logger := w.logger.With(zap.String("id", job.Meta().Id),
-		zap.String("type", job.Meta().Type),
-		zap.String("user", job.Meta().User),
-		zap.String("class", job.Meta().Class),
-		zap.String("category", job.Meta().Category))
+	logger := w.logger.With(zap.String("id", job.Id),
+		zap.String("type", job.Type),
+		zap.String("userId", job.UserId))
 
 	// process job & record error
 	ctx := context.WithValue(context.Background(), LoggerKey, logger)
 	ctx = context.WithValue(ctx, EventKey, event)
 
-	err = job.Process(ctx)
-	event.AddPair("jobType", job.Meta().Type)
-	event.AddPair("jobId", job.Meta().Id)
+	processor := w.Database().GetProcessor(job.Type)
+	if processor == nil {
+		return
+	}
+
+	err = processor.Process(ctx, job, w.Database().UpdateJobState)
+	event.AddPair("jobType", job.Type)
+	event.AddPair("jobId", job.Id)
 
 	if err != nil {
-		job.Meta().Error = err.Error()
 		event.AddErr(err)
 		event.SetResCode("Fail")
 
 		w.logger.Error("failed to process job",
-			zap.String("id", job.Meta().Id),
-			zap.String("type", job.Meta().Type),
-			zap.String("user", job.Meta().User),
-			zap.String("class", job.Meta().Class),
-			zap.String("category", job.Meta().Category),
+			zap.String("id", job.Id),
+			zap.String("type", job.Type),
+			zap.String("userId", job.UserId),
 			zap.Error(err))
 
 		if err := w.db.UpdateJobState(job, JobStateFailed); err != nil {
 			w.logger.Error("failed to update job state",
-				zap.String("id", job.Meta().Id),
-				zap.String("type", job.Meta().Type),
-				zap.String("user", job.Meta().User),
-				zap.String("class", job.Meta().Class),
-				zap.String("category", job.Meta().Category),
+				zap.String("id", job.Id),
+				zap.String("type", job.Type),
+				zap.String("userId", job.UserId),
 				zap.String("state", JobStateFailed),
 				zap.Error(err))
 			return
@@ -140,11 +138,9 @@ func (w *LocalWorker) processJob() {
 	// update DB
 	if err := w.db.UpdateJobState(job, JobStateSuccess); err != nil {
 		w.logger.Error("failed to update job state",
-			zap.String("id", job.Meta().Id),
-			zap.String("type", job.Meta().Type),
-			zap.String("user", job.Meta().User),
-			zap.String("class", job.Meta().Class),
-			zap.String("category", job.Meta().Category),
+			zap.String("id", job.Id),
+			zap.String("type", job.Type),
+			zap.String("userId", job.UserId),
 			zap.String("state", JobStateSuccess))
 	}
 }

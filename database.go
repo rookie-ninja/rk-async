@@ -1,56 +1,31 @@
 package rkasync
 
+import "gorm.io/gorm/clause"
+
 type Database interface {
 	Type() string
 
-	RegisterJob(job Job)
+	AddJob(job *Job) error
 
-	AddJob(job Job) error
+	RegisterProcessor(jobType string, processor Processor)
 
-	PickJobToWork() (Job, error)
+	GetProcessor(jobType string) Processor
 
-	UpdateJobState(job Job, state string) error
+	PickJobToWork() (*Job, error)
 
-	ListJobs(filter *JobFilter) ([]Job, error)
+	UpdateJobState(job *Job, state string) error
 
-	GetJob(id string) (Job, error)
+	ListJobs(filter *JobFilter) ([]*Job, error)
+
+	GetJob(id string) (*Job, error)
 
 	CancelJobsOverdue(days int, filter *JobFilter) error
 
 	CleanJobs(days int, filter *JobFilter) error
 }
 
-type UnmarshalerFunc func([]byte, *JobMeta) (Job, error)
-
-func NewJobFilter() *JobFilter {
-	return &JobFilter{
-		TypeList:     []string{},
-		UserList:     []string{},
-		ClassList:    []string{},
-		CategoryList: []string{},
-	}
-}
-
 type JobFilter struct {
-	TypeList     []string
-	UserList     []string
-	ClassList    []string
-	CategoryList []string
-	Limit        int
-}
-
-func (f *JobFilter) AddType(in string) {
-	f.TypeList = append(f.TypeList, in)
-}
-
-func (f *JobFilter) AddUser(in string) {
-	f.UserList = append(f.UserList, in)
-}
-
-func (f *JobFilter) AddClass(in string) {
-	f.ClassList = append(f.ClassList, in)
-}
-
-func (f *JobFilter) AddCategory(in string) {
-	f.CategoryList = append(f.CategoryList, in)
+	ClauseList []clause.Expression
+	Limit      int
+	Order      string
 }
