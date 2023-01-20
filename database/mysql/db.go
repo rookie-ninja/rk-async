@@ -60,7 +60,9 @@ func (e *Database) AddJob(job *rkasync.Job) error {
 		return fmt.Errorf("nil job")
 	}
 
-	job.Id = xid.New().String()
+	if len(job.Id) < 1 {
+		job.Id = xid.New().String()
+	}
 	job.State = rkasync.JobStateCreated
 
 	// sync to DB
