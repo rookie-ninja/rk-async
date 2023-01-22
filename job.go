@@ -58,6 +58,7 @@ func (s *Step) SuccessOutput(output *StepOutput, startTime time.Time) {
 	if output == nil {
 		return
 	}
+	output.Success = true
 	output.ElapsedSec = s.UpdatedAt.Sub(startTime).Seconds()
 	s.Output = append(s.Output, output)
 }
@@ -68,6 +69,7 @@ func (s *Step) FailedOutput(output *StepOutput, startTime time.Time) {
 	if output == nil {
 		return
 	}
+	output.Success = false
 	output.ElapsedSec = s.UpdatedAt.Sub(startTime).Seconds()
 	s.Output = append(s.Output, output)
 }
