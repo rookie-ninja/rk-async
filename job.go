@@ -2,7 +2,6 @@ package rkasync
 
 import (
 	"context"
-	"fmt"
 	"gorm.io/datatypes"
 	"time"
 )
@@ -37,24 +36,40 @@ func (j *Job) TableName() string {
 }
 
 type Step struct {
-	Index      int       `json:"index" yaml:"index"`
-	Name       string    `json:"id" yaml:"id"`
-	State      string    `json:"state" yaml:"state"`
-	StartedAt  time.Time `yaml:"startedAt" json:"startedAt"`
-	UpdatedAt  time.Time `yaml:"updatedAt" json:"updatedAt"`
-	ElapsedSec float64   `yaml:"elapsedSec" json:"elapsedSec"`
-	Output     []string  `yaml:"output" json:"output"`
+	Index      int           `json:"index" yaml:"index"`
+	Name       string        `json:"id" yaml:"id"`
+	State      string        `json:"state" yaml:"state"`
+	StartedAt  time.Time     `yaml:"startedAt" json:"startedAt"`
+	UpdatedAt  time.Time     `yaml:"updatedAt" json:"updatedAt"`
+	ElapsedSec float64       `yaml:"elapsedSec" json:"elapsedSec"`
+	Output     []*StepOutput `yaml:"output" json:"output"`
 }
 
-func (s *Step) SuccessOutput(output string, startTime time.Time) {
+type StepOutput struct {
+	Message    string  `json:"message,omitempty"`
+	ElapsedSec float64 `json:"elapsedSec"`
+	Success    bool    `json:"success"`
+	RetryCount int     `json:"retryCount"`
+	Error      error   `json:"error,omitempty"`
+}
+
+func (s *Step) SuccessOutput(output *StepOutput, startTime time.Time) {
 	s.UpdatedAt = time.Now()
-	s.Output = append(s.Output, fmt.Sprintf("%s, elapsedSec:%.2f", output, s.UpdatedAt.Sub(startTime).Seconds()))
+	if output == nil {
+		return
+	}
+	output.ElapsedSec = s.UpdatedAt.Sub(startTime).Seconds()
+	s.Output = append(s.Output, output)
 }
 
-func (s *Step) FailedOutput(output string, startTime time.Time) {
+func (s *Step) FailedOutput(output *StepOutput, startTime time.Time) {
 	s.UpdatedAt = time.Now()
 	s.State = JobStateFailed
-	s.Output = append(s.Output, fmt.Sprintf("%s, elapsedSec:%.2f", output, s.UpdatedAt.Sub(startTime).Seconds()))
+	if output == nil {
+		return
+	}
+	output.ElapsedSec = s.UpdatedAt.Sub(startTime).Seconds()
+	s.Output = append(s.Output, output)
 }
 
 func (s *Step) Finish() {
