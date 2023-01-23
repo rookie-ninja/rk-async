@@ -50,7 +50,7 @@ type StepOutput struct {
 	ElapsedSec float64 `json:"elapsedSec"`
 	Success    bool    `json:"success"`
 	RetryCount int     `json:"retryCount"`
-	Error      error   `json:"error,omitempty"`
+	Error      string  `json:"error,omitempty"`
 }
 
 func (s *Step) SuccessOutput(output *StepOutput, startTime time.Time) {
@@ -63,11 +63,14 @@ func (s *Step) SuccessOutput(output *StepOutput, startTime time.Time) {
 	s.Output = append(s.Output, output)
 }
 
-func (s *Step) FailedOutput(output *StepOutput, startTime time.Time) {
+func (s *Step) FailedOutput(output *StepOutput, err error, startTime time.Time) {
 	s.UpdatedAt = time.Now()
 	s.State = JobStateFailed
 	if output == nil {
 		return
+	}
+	if err != nil {
+		output.Error = err.Error()
 	}
 	output.Success = false
 	output.ElapsedSec = s.UpdatedAt.Sub(startTime).Seconds()
