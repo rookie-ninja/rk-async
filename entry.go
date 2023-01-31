@@ -157,9 +157,9 @@ func (e *Entry) StartWorker() {
 	}
 }
 
-func (e *Entry) StopWorker() {
+func (e *Entry) StopWorker(force bool, waitSec int) {
 	if e.worker != nil {
-		e.worker.Stop()
+		e.worker.Stop(force, waitSec)
 	}
 }
 
