@@ -2,6 +2,7 @@ package rkasync
 
 import (
 	"context"
+	"fmt"
 	"github.com/rookie-ninja/rk-entry/v2/entry"
 	rkquery "github.com/rookie-ninja/rk-query"
 	"go.uber.org/zap"
@@ -17,7 +18,7 @@ const (
 type Worker interface {
 	Start()
 
-	Stop()
+	Stop(force bool, waitSec int)
 
 	Database() Database
 }
@@ -74,8 +75,19 @@ func (w *LocalWorker) Start() {
 	})
 }
 
-func (w *LocalWorker) Stop() {
+func (w *LocalWorker) Stop(force bool, waitSec int) {
 	w.stopOnce.Do(func() {
+		if force {
+			close(w.quitChannel)
+			// wait for three seconds
+			for i := 0; i < waitSec; i++ {
+				w.logger.Info(fmt.Sprintf("shutting down worker, wait for %d second", i+1))
+				time.Sleep(1 * time.Second)
+			}
+			return
+		}
+
+		w.logger.Info("shutting down worker, wait for jobs finish")
 		close(w.quitChannel)
 		w.waitGroup.Wait()
 	})
