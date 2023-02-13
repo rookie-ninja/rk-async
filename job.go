@@ -90,18 +90,18 @@ type Processor interface {
 
 func JobNewStateAllowed(oldState, newState string) bool {
 	switch oldState {
-	case "created":
+	case JobStateCreated:
 		if newState == JobStateRunning || newState == JobStateCanceled {
 			return true
 		}
 
 		return false
-	case "running":
+	case JobStateRunning:
 		if newState == JobStateCreated {
 			return false
 		}
 		return true
-	case "canceled", "success", "failed":
+	case JobStateCanceled, JobStateSuccess, JobStateFailed:
 		return false
 	}
 
