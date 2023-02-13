@@ -108,7 +108,7 @@ func (e *Database) PickJobToWork() (*rkasync.Job, error) {
 func (e *Database) UpdateJobState(job *rkasync.Job, state string) error {
 	err := e.db.Transaction(func(tx *gorm.DB) error {
 		if !rkasync.JobNewStateAllowed(job.State, state) {
-			return fmt.Errorf("job state mutation not allowed by policy, %s->%s", job.State, state)
+			return nil
 		}
 
 		job.State = state
