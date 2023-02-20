@@ -6,7 +6,7 @@ replace github.com/rookie-ninja/rk-async => ../../
 
 require (
 	github.com/rookie-ninja/rk-async v0.0.9
-	github.com/rookie-ninja/rk-db/postgres v1.2.18
+	github.com/rookie-ninja/rk-db/postgres v1.2.19
 	github.com/rs/xid v1.4.0
 	gorm.io/gorm v1.24.2
 )
@@ -39,7 +39,7 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
-	github.com/rookie-ninja/rk-entry/v2 v2.2.17 // indirect
+	github.com/rookie-ninja/rk-entry/v2 v2.2.18 // indirect
 	github.com/rookie-ninja/rk-logger v1.2.13 // indirect
 	github.com/rookie-ninja/rk-query v1.2.14 // indirect
 	github.com/spf13/afero v1.8.2 // indirect
