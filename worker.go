@@ -112,13 +112,19 @@ func (w *LocalWorker) processJob() {
 		zap.String("type", job.Type),
 		zap.String("userId", job.UserId))
 
+	logger.Info("pick job to work")
+	defer logger.Info("finished job")
+
 	// process job & record error
 	ctx := context.WithValue(context.Background(), LoggerKey, logger)
 	ctx = context.WithValue(ctx, EventKey, event)
 
 	processor := w.Database().GetProcessor(job.Type)
 	if processor == nil {
-		w.db.UpdateJobState(job, JobStateFailed)
+		logger.Warn("processor is nil, aborting...")
+		if err := w.db.UpdateJobState(job, JobStateFailed); err != nil {
+			logger.Warn("failed to update job state", zap.Error(err))
+		}
 		return
 	}
 
@@ -130,17 +136,10 @@ func (w *LocalWorker) processJob() {
 		event.AddErr(err)
 		event.SetResCode("Fail")
 
-		w.logger.Error("failed to process job",
-			zap.String("id", job.Id),
-			zap.String("type", job.Type),
-			zap.String("userId", job.UserId),
-			zap.Error(err))
+		logger.Error("failed to process job", zap.Error(err))
 
 		if err := w.db.UpdateJobState(job, JobStateFailed); err != nil {
-			w.logger.Error("failed to update job state",
-				zap.String("id", job.Id),
-				zap.String("type", job.Type),
-				zap.String("userId", job.UserId),
+			logger.Error("failed to update job state",
 				zap.String("state", JobStateFailed),
 				zap.Error(err))
 		}
@@ -149,11 +148,7 @@ func (w *LocalWorker) processJob() {
 
 	// update DB
 	if err := w.db.UpdateJobState(job, JobStateSuccess); err != nil {
-		w.logger.Error("failed to update job state",
-			zap.String("id", job.Id),
-			zap.String("type", job.Type),
-			zap.String("userId", job.UserId),
-			zap.String("state", JobStateSuccess))
+		logger.Error("failed to update job state", zap.String("state", JobStateSuccess))
 	}
 }
 
