@@ -107,6 +107,7 @@ func (e *Database) PickJobToWork() (*rkasync.Job, error) {
 
 func (e *Database) UpdateJobState(job *rkasync.Job, state string) error {
 	err := e.db.Transaction(func(tx *gorm.DB) error {
+		job.State = state
 		resDB := tx.Updates(job)
 		if resDB.Error != nil {
 			return resDB.Error
