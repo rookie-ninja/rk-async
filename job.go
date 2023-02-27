@@ -87,23 +87,3 @@ type UpdateJobFunc func(j *Job, state string) error
 type Processor interface {
 	Process(context.Context, *Job, UpdateJobFunc) error
 }
-
-func JobNewStateAllowed(oldState, newState string) bool {
-	switch oldState {
-	case JobStateCreated:
-		if newState == JobStateRunning || newState == JobStateCanceled || newState == JobStateCreated {
-			return true
-		}
-
-		return false
-	case JobStateRunning:
-		if newState == JobStateCreated || newState == JobStateRunning {
-			return false
-		}
-		return true
-	case JobStateCanceled, JobStateSuccess, JobStateFailed:
-		return false
-	}
-
-	return false
-}

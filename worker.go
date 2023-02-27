@@ -118,6 +118,7 @@ func (w *LocalWorker) processJob() {
 
 	processor := w.Database().GetProcessor(job.Type)
 	if processor == nil {
+		w.db.UpdateJobState(job, JobStateFailed)
 		return
 	}
 
@@ -142,7 +143,6 @@ func (w *LocalWorker) processJob() {
 				zap.String("userId", job.UserId),
 				zap.String("state", JobStateFailed),
 				zap.Error(err))
-			return
 		}
 		return
 	}
