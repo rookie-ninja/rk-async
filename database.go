@@ -13,7 +13,7 @@ type Database interface {
 
 	PickJobToWork() (*Job, error)
 
-	UpdateJobState(job *Job, state string) error
+	UpdateJob(job *Job) error
 
 	ListJobs(filter *JobFilter) ([]*Job, error)
 

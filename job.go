@@ -3,6 +3,7 @@ package rkasync
 import (
 	"context"
 	"gorm.io/datatypes"
+	"sync"
 	"time"
 )
 
@@ -19,7 +20,7 @@ type Job struct {
 	Id        string    `json:"id" yaml:"id" gorm:"primaryKey"`
 	State     string    `json:"state" yaml:"state" gorm:"index"`
 	CreatedAt time.Time `yaml:"createdAt" json:"createdAt" attr:"-"`
-	UpdatedAt time.Time `yaml:"updatedAt" json:"updatedAt" attr:"-"`
+	UpdatedAt time.Time `yaml:"updatedAt" json:"updatedAt"`
 
 	// edit
 	Type   string `json:"type" yaml:"type" gorm:"index"`
@@ -36,53 +37,34 @@ func (j *Job) TableName() string {
 }
 
 type Step struct {
-	Index      int           `json:"index" yaml:"index"`
-	Name       string        `json:"id" yaml:"id"`
-	State      string        `json:"state" yaml:"state"`
-	StartedAt  time.Time     `yaml:"startedAt" json:"startedAt"`
-	UpdatedAt  time.Time     `yaml:"updatedAt" json:"updatedAt"`
-	ElapsedSec float64       `yaml:"elapsedSec" json:"elapsedSec"`
-	Output     []*StepOutput `yaml:"output" json:"output"`
+	Index      int       `json:"index" yaml:"index"`
+	Name       string    `json:"id" yaml:"id"`
+	State      string    `json:"state" yaml:"state"`
+	StartedAt  time.Time `yaml:"startedAt" json:"startedAt"`
+	ElapsedSec float64   `yaml:"elapsedSec" json:"elapsedSec"`
+	Output     []string  `yaml:"output" json:"output"`
+
+	PersistFunc func() `json:"-" yaml:"-"`
+
+	Lock sync.Mutex `json:"-" yaml:"-"`
 }
 
-type StepOutput struct {
-	Message    string  `json:"message,omitempty"`
-	ElapsedSec float64 `json:"elapsedSec"`
-	Success    bool    `json:"success"`
-	RetryCount int     `json:"retryCount"`
-	Error      string  `json:"error,omitempty"`
+func (s *Step) AddOutput(inputs ...string) {
+	s.Lock.Lock()
+	defer s.Lock.Unlock()
+
+	s.Output = append(s.Output, inputs...)
+
+	s.PersistFunc()
 }
 
-func (s *Step) SuccessOutput(output *StepOutput, startTime time.Time) {
-	s.UpdatedAt = time.Now()
-	if output == nil {
-		return
-	}
-	output.Success = true
-	output.ElapsedSec = s.UpdatedAt.Sub(startTime).Seconds()
-	s.Output = append(s.Output, output)
+func (s *Step) Finish(state string) {
+	s.State = state
+	s.ElapsedSec = time.Now().Sub(s.StartedAt).Seconds()
+	s.PersistFunc()
 }
 
-func (s *Step) FailedOutput(output *StepOutput, err error, startTime time.Time) {
-	s.UpdatedAt = time.Now()
-	s.State = JobStateFailed
-	if output == nil {
-		return
-	}
-	if err != nil {
-		output.Error = err.Error()
-	}
-	output.Success = false
-	output.ElapsedSec = s.UpdatedAt.Sub(startTime).Seconds()
-	s.Output = append(s.Output, output)
-}
-
-func (s *Step) Finish() {
-	s.UpdatedAt = time.Now()
-	s.ElapsedSec = s.UpdatedAt.Sub(s.StartedAt).Seconds()
-}
-
-type UpdateJobFunc func(j *Job, state string) error
+type UpdateJobFunc func(j *Job) error
 
 type Processor interface {
 	Process(context.Context, *Job, UpdateJobFunc) error

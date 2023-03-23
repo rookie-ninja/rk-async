@@ -175,8 +175,8 @@ func (e *Entry) AddJob(job *Job) error {
 	return e.db.AddJob(job)
 }
 
-func (e *Entry) UpdateJobState(job *Job, state string) error {
-	return e.db.UpdateJobState(job, state)
+func (e *Entry) UpdateJob(job *Job) error {
+	return e.db.UpdateJob(job)
 }
 
 func (e *Entry) ListJobs(filter *JobFilter) ([]*Job, error) {

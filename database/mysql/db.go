@@ -105,14 +105,14 @@ func (e *Database) PickJobToWork() (*rkasync.Job, error) {
 	return job, err
 }
 
-func (e *Database) UpdateJobState(job *rkasync.Job, state string) error {
+func (e *Database) UpdateJob(job *rkasync.Job) error {
 	err := e.db.Transaction(func(tx *gorm.DB) error {
 		resDB := tx.Updates(job)
 		if resDB.Error != nil {
 			return resDB.Error
 		}
 		if resDB.RowsAffected < 1 {
-			return fmt.Errorf("failed to update job state, no rows updated, id:%s, state:%s", job.Id, state)
+			return fmt.Errorf("failed to update job state, no rows updated, id:%s, state:%s", job.Id, job.State)
 		}
 
 		return nil

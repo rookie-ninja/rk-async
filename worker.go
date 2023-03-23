@@ -122,13 +122,14 @@ func (w *LocalWorker) processJob() {
 	processor := w.Database().GetProcessor(job.Type)
 	if processor == nil {
 		logger.Warn("processor is nil, aborting...")
-		if err := w.db.UpdateJobState(job, JobStateFailed); err != nil {
+		job.State = JobStateFailed
+		if err := w.db.UpdateJob(job); err != nil {
 			logger.Warn("failed to update job state", zap.Error(err))
 		}
 		return
 	}
 
-	err = processor.Process(ctx, job, w.Database().UpdateJobState)
+	err = processor.Process(ctx, job, w.Database().UpdateJob)
 	event.AddPair("jobType", job.Type)
 	event.AddPair("jobId", job.Id)
 
@@ -138,7 +139,8 @@ func (w *LocalWorker) processJob() {
 
 		logger.Error("failed to process job", zap.Error(err))
 
-		if err := w.db.UpdateJobState(job, JobStateFailed); err != nil {
+		job.State = JobStateFailed
+		if err := w.db.UpdateJob(job); err != nil {
 			logger.Error("failed to update job state",
 				zap.String("state", JobStateFailed),
 				zap.Error(err))
@@ -147,7 +149,8 @@ func (w *LocalWorker) processJob() {
 	}
 
 	// update DB
-	if err := w.db.UpdateJobState(job, JobStateSuccess); err != nil {
+	job.State = JobStateSuccess
+	if err := w.db.UpdateJob(job); err != nil {
 		logger.Error("failed to update job state", zap.String("state", JobStateSuccess))
 	}
 }
