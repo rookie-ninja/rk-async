@@ -2,6 +2,7 @@ package rkasync
 
 import (
 	"context"
+	"fmt"
 	"gorm.io/datatypes"
 	"sync"
 	"time"
@@ -36,6 +37,8 @@ func (j *Job) TableName() string {
 	return "rk_async_job"
 }
 
+type NewRecorderF func() *Recorder
+
 type Step struct {
 	Index      int       `json:"index" yaml:"index"`
 	Name       string    `json:"id" yaml:"id"`
@@ -49,13 +52,17 @@ type Step struct {
 	Lock sync.Mutex `json:"-" yaml:"-"`
 }
 
-func (s *Step) AddOutput(inputs ...string) {
+func (s *Step) NewRecorder() *Recorder {
 	s.Lock.Lock()
 	defer s.Lock.Unlock()
 
-	s.Output = append(s.Output, inputs...)
+	s.Output = append(s.Output, "")
 
-	s.PersistFunc()
+	return &Recorder{
+		index:     len(s.Output) - 1,
+		startTime: time.Now(),
+		step:      s,
+	}
 }
 
 func (s *Step) Finish(state string) {
@@ -68,4 +75,40 @@ type UpdateJobFunc func(j *Job) error
 
 type Processor interface {
 	Process(context.Context, *Job, UpdateJobFunc) error
+}
+
+type Recorder struct {
+	index     int
+	startTime time.Time
+	step      *Step
+}
+
+func (r *Recorder) Title(s string) {
+	output := fmt.Sprintf("👉🏻 %s", s)
+
+	r.step.Lock.Lock()
+	r.step.Output[r.index] = output
+	r.step.Lock.Unlock()
+
+	r.step.PersistFunc()
+}
+
+func (r *Recorder) Warn(s string) {
+	output := fmt.Sprintf("⚠️️ [%s] %s", time.Duration(time.Now().Sub(r.startTime).Seconds())*time.Second, s)
+
+	r.step.Lock.Lock()
+	r.step.Output[r.index] = output
+	r.step.Lock.Unlock()
+
+	r.step.PersistFunc()
+}
+
+func (r *Recorder) Info(s string) {
+	output := fmt.Sprintf("[%s] %s", time.Duration(time.Now().Sub(r.startTime).Seconds())*time.Second, s)
+
+	r.step.Lock.Lock()
+	r.step.Output[r.index] = output
+	r.step.Lock.Unlock()
+
+	r.step.PersistFunc()
 }
