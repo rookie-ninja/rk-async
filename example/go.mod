@@ -3,7 +3,7 @@ module github.com/rookie-ninja/rk-async/example
 go 1.19
 
 require (
-	github.com/rookie-ninja/rk-async v0.0.0-00010101000000-000000000000
+	github.com/rookie-ninja/rk-async v0.0.9
 	github.com/rookie-ninja/rk-boot/v2 v2.2.13
 	github.com/rookie-ninja/rk-gin/v2 v2.2.16
 )
@@ -22,7 +22,7 @@ require (
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/go-playground/validator/v10 v10.10.0 // indirect
-	github.com/go-sql-driver/mysql v1.6.0 // indirect
+	github.com/go-sql-driver/mysql v1.7.0 // indirect
 	github.com/goccy/go-json v0.9.7 // indirect
 	github.com/golang-jwt/jwt/v4 v4.4.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
@@ -47,8 +47,8 @@ require (
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/rookie-ninja/rk-async/database/mysql v0.0.0-20221223104628-51befa50f60c // indirect
-	github.com/rookie-ninja/rk-db/mysql v1.2.14 // indirect
-	github.com/rookie-ninja/rk-entry/v2 v2.2.14 // indirect
+	github.com/rookie-ninja/rk-db/mysql v1.2.19 // indirect
+	github.com/rookie-ninja/rk-entry/v2 v2.2.18 // indirect
 	github.com/rookie-ninja/rk-logger v1.2.13 // indirect
 	github.com/rookie-ninja/rk-query v1.2.14 // indirect
 	github.com/rs/xid v1.4.0 // indirect
@@ -85,7 +85,7 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	gorm.io/driver/mysql v1.4.3 // indirect
+	gorm.io/driver/mysql v1.4.4 // indirect
 	gorm.io/gorm v1.24.2 // indirect
 )
 

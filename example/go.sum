@@ -131,6 +131,7 @@ github.com/go-playground/validator/v10 v10.10.0 h1:I7mrTYv78z8k8VXa/qJlOlEXn/nBh
 github.com/go-playground/validator/v10 v10.10.0/go.mod h1:74x4gJWsvQexRdW8Pn3dXSGrTK4nAUsbPlLADvpJkos=
 github.com/go-sql-driver/mysql v1.6.0 h1:BCTh4TKNUYmOmMUcQ3IipzF5prigylS7XXjEkfCHuOE=
 github.com/go-sql-driver/mysql v1.6.0/go.mod h1:DCzpHaOWr8IXmIStZouvnhqoel9Qv2LBy8hT2VhHyBg=
+github.com/go-sql-driver/mysql v1.7.0/go.mod h1:OXbVy3sEdcQ2Doequ6Z5BW6fXNQTmx+9S1MCJN5yJMI=
 github.com/go-stack/stack v1.8.0/go.mod h1:v0f6uXyyMGvRgIKkXu+yp6POWl0qKG85gN/melR3HDY=
 github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0/go.mod h1:fyg7847qk6SyHyPtNmDHnmrv/HOrqktSC+C9fM+CJOE=
 github.com/goccy/go-json v0.9.7 h1:IcB+Aqpx/iMHu5Yooh7jEzJk1JZ7Pjtmys2ukPr7EeM=
@@ -334,8 +335,10 @@ github.com/rookie-ninja/rk-boot/v2 v2.2.13 h1:Pz+8gHKmbdL9nfknqZDeagvaMnp+6fg5iZ
 github.com/rookie-ninja/rk-boot/v2 v2.2.13/go.mod h1:cVGWOwVlYoKTrwYTsl4qPE44xSdNsAzcYcUAoyfQTA0=
 github.com/rookie-ninja/rk-db/mysql v1.2.14 h1:sR6diDQd9rG9dY3Lup3HkH4XhSpzQihlw/96Hd4ojXU=
 github.com/rookie-ninja/rk-db/mysql v1.2.14/go.mod h1:pjgr5OFex17J5X03xjUq74qgGZbeuubAwGlpvrYphT0=
+github.com/rookie-ninja/rk-db/mysql v1.2.19/go.mod h1:L7qqzzd1HSNfECNhcvxZEed4v5j0Yi3hnl1mmMXY+tY=
 github.com/rookie-ninja/rk-entry/v2 v2.2.14 h1:PHzofuw52zfskrgJKC+WIMt1LtoBosrukjWHZ/DKsTE=
 github.com/rookie-ninja/rk-entry/v2 v2.2.14/go.mod h1:P/Fd6Oyvvx0ITbEU2lzO3KkQ9miWVwd84aPaC0LMD0o=
+github.com/rookie-ninja/rk-entry/v2 v2.2.18/go.mod h1:P/Fd6Oyvvx0ITbEU2lzO3KkQ9miWVwd84aPaC0LMD0o=
 github.com/rookie-ninja/rk-gin/v2 v2.2.16 h1:2Sil0e1Yre3eoVPoW9ztLM0bPBrtAGE0A1S7uMg6R80=
 github.com/rookie-ninja/rk-gin/v2 v2.2.16/go.mod h1:8bAcc6z/T9O+Qgx1vf7Yu9WKQg782Yav5UJG+cvQteI=
 github.com/rookie-ninja/rk-logger v1.2.13 h1:ERxeNZUmszlY4xehHcJRXECPtbjYIXzN8yRIyYyLGsg=
@@ -800,6 +803,7 @@ gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 gorm.io/driver/mysql v1.4.3 h1:/JhWJhO2v17d8hjApTltKNADm7K7YI2ogkR7avJUL3k=
 gorm.io/driver/mysql v1.4.3/go.mod h1:sSIebwZAVPiT+27jK9HIwvsqOGKx3YMPmrA3mBJR10c=
+gorm.io/driver/mysql v1.4.4/go.mod h1:BCg8cKI+R0j/rZRQxeKis/forqRwRSYOR8OM3Wo6hOM=
 gorm.io/gorm v1.23.8/go.mod h1:l2lP/RyAtc1ynaTjFksBde/O8v9oOGIApu2/xRitmZk=
 gorm.io/gorm v1.24.2 h1:9wR6CFD+G8nOusLdvkZelOEhpJVwwHzpQOUM+REd6U0=
 gorm.io/gorm v1.24.2/go.mod h1:DVrVomtaYTbqs7gB/x2uVvqnXzv0nqjB396B8cG4dBA=

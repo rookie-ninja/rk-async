@@ -107,8 +107,10 @@ func (w *LocalWorker) processJob() {
 	event := w.event.Start("processJob",
 		rkquery.WithEntryName(job.Type),
 		rkquery.WithEntryType(job.Id))
-	defer event.SetEndTime(time.Now())
-	defer event.Finish()
+	defer func() {
+		event.SetEndTime(time.Now())
+		event.Finish()
+	}()
 	event.SetResCode("OK")
 
 	logger := w.logger.With(zap.String("id", job.Id),
