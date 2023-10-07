@@ -104,7 +104,10 @@ func (w *LocalWorker) processJob() {
 		return
 	}
 
-	event := w.event.Start("processJob")
+	event := w.event.Start("processJob",
+		rkquery.WithEntryName(job.Type),
+		rkquery.WithEntryType(job.Id))
+	defer event.SetEndTime(time.Now())
 	defer event.Finish()
 	event.SetResCode("OK")
 
