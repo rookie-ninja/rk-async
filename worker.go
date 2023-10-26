@@ -67,7 +67,6 @@ func (w *LocalWorker) Start() {
 					w.processJob()
 					waitChannel.Reset(time.Duration(1) * time.Second)
 				default:
-					w.processJob()
 					time.Sleep(time.Duration(1) * time.Second)
 				}
 			}
@@ -128,13 +127,13 @@ func (w *LocalWorker) processJob() {
 	if processor == nil {
 		logger.Warn("processor is nil, aborting...")
 		job.State = JobStateFailed
-		if err := w.db.UpdateJob(job); err != nil {
+		if err := w.db.UpdateJobState(job); err != nil {
 			logger.Warn("failed to update job state", zap.Error(err))
 		}
 		return
 	}
 
-	err = processor.Process(ctx, job, w.Database().UpdateJob)
+	err = processor.Process(ctx, job, w.Database().UpdateJobPayloadAndStep)
 	event.AddPair("jobType", job.Type)
 	event.AddPair("jobId", job.Id)
 
@@ -145,7 +144,7 @@ func (w *LocalWorker) processJob() {
 		logger.Error("failed to process job", zap.Error(err))
 
 		job.State = JobStateFailed
-		if err := w.db.UpdateJob(job); err != nil {
+		if err := w.db.UpdateJobState(job); err != nil {
 			logger.Error("failed to update job state",
 				zap.String("state", JobStateFailed),
 				zap.Error(err))
@@ -155,7 +154,7 @@ func (w *LocalWorker) processJob() {
 
 	// update DB
 	job.State = JobStateSuccess
-	if err := w.db.UpdateJob(job); err != nil {
+	if err := w.db.UpdateJobState(job); err != nil {
 		logger.Error("failed to update job state", zap.String("state", JobStateSuccess))
 	}
 }

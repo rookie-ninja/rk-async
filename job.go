@@ -66,6 +66,9 @@ func (s *Step) NewRecorder() *Recorder {
 }
 
 func (s *Step) Finish(state string) {
+	s.Lock.Lock()
+	defer s.Lock.Unlock()
+
 	s.State = state
 	s.ElapsedSec = time.Now().Sub(s.StartedAt).Seconds()
 	s.PersistFunc()
@@ -87,8 +90,11 @@ func (r *Recorder) Title(s string) {
 	output := fmt.Sprintf("👉🏻 %s", s)
 
 	r.step.Lock.Lock()
-	r.step.Output[r.index] = output
-	r.step.Lock.Unlock()
+	defer r.step.Lock.Unlock()
+
+	if r.step != nil && len(r.step.Output) > r.index {
+		r.step.Output[r.index] = output
+	}
 
 	r.step.PersistFunc()
 }
@@ -97,8 +103,11 @@ func (r *Recorder) Warn(s string) {
 	output := fmt.Sprintf("⚠️️ [%s] %s", time.Duration(time.Now().Sub(r.startTime).Seconds())*time.Second, s)
 
 	r.step.Lock.Lock()
-	r.step.Output[r.index] = output
-	r.step.Lock.Unlock()
+	defer r.step.Lock.Unlock()
+
+	if r.step != nil && len(r.step.Output) > r.index {
+		r.step.Output[r.index] = output
+	}
 
 	r.step.PersistFunc()
 }
@@ -107,8 +116,11 @@ func (r *Recorder) Info(s string) {
 	output := fmt.Sprintf("[%s] %s", time.Duration(time.Now().Sub(r.startTime).Seconds())*time.Second, s)
 
 	r.step.Lock.Lock()
-	r.step.Output[r.index] = output
-	r.step.Lock.Unlock()
+	defer r.step.Lock.Unlock()
+
+	if r.step != nil && len(r.step.Output) > r.index {
+		r.step.Output[r.index] = output
+	}
 
 	r.step.PersistFunc()
 }

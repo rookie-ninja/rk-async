@@ -13,7 +13,9 @@ type Database interface {
 
 	PickJobToWork() (*Job, error)
 
-	UpdateJob(job *Job) error
+	UpdateJobState(job *Job) error
+
+	UpdateJobPayloadAndStep(job *Job) error
 
 	ListJobs(filter *JobFilter) ([]*Job, error)
 

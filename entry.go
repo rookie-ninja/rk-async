@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/rookie-ninja/rk-entry/v2/entry"
+	"go.uber.org/zap"
 	"sync"
 )
 
@@ -13,7 +14,7 @@ func init() {
 }
 
 var (
-	dbRegFuncM = map[string]func(map[string]string) Database{}
+	dbRegFuncM = map[string]func(map[string]string, *zap.Logger) Database{}
 )
 
 func GetEntry() *Entry {
@@ -29,7 +30,7 @@ func GetEntry() *Entry {
 	return nil
 }
 
-func RegisterDatabaseRegFunc(dbType string, f func(map[string]string) Database) {
+func RegisterDatabaseRegFunc(dbType string, f func(map[string]string, *zap.Logger) Database) {
 	dbRegFuncM[dbType] = f
 }
 
@@ -86,29 +87,6 @@ type Entry struct {
 
 func (e *Entry) Bootstrap(ctx context.Context) {
 	e.bootstrapOnce.Do(func() {
-		var db Database
-		if e.config.Async.Database.MySql.Enabled {
-			f := dbRegFuncM["MySQL"]
-			db = f(map[string]string{
-				"entryName": e.config.Async.Database.MySql.EntryName,
-				"database":  e.config.Async.Database.MySql.Database,
-			})
-		}
-
-		if e.config.Async.Database.Postgres.Enabled {
-			f := dbRegFuncM["PostgreSQL"]
-			db = f(map[string]string{
-				"entryName": e.config.Async.Database.Postgres.EntryName,
-				"database":  e.config.Async.Database.Postgres.Database,
-			})
-		}
-
-		if db == nil {
-			rkentry.ShutdownWithError(errors.New("db is nil"))
-		}
-
-		e.db = db
-
 		// logger
 		logger := rkentry.GlobalAppCtx.GetLoggerEntry(e.config.Async.Logger)
 		if logger == nil {
@@ -120,6 +98,29 @@ func (e *Entry) Bootstrap(ctx context.Context) {
 		if event == nil {
 			event = rkentry.GlobalAppCtx.GetEventEntryDefault()
 		}
+
+		var db Database
+		if e.config.Async.Database.MySql.Enabled {
+			f := dbRegFuncM["MySQL"]
+			db = f(map[string]string{
+				"entryName": e.config.Async.Database.MySql.EntryName,
+				"database":  e.config.Async.Database.MySql.Database,
+			}, logger.Logger)
+		}
+
+		if e.config.Async.Database.Postgres.Enabled {
+			f := dbRegFuncM["PostgreSQL"]
+			db = f(map[string]string{
+				"entryName": e.config.Async.Database.Postgres.EntryName,
+				"database":  e.config.Async.Database.Postgres.Database,
+			}, logger.Logger)
+		}
+
+		if db == nil {
+			rkentry.ShutdownWithError(errors.New("db is nil"))
+		}
+
+		e.db = db
 
 		// worker
 		if e.config.Async.Worker.Local.Enabled {
@@ -175,8 +176,32 @@ func (e *Entry) AddJob(job *Job) error {
 	return e.db.AddJob(job)
 }
 
-func (e *Entry) UpdateJob(job *Job) error {
-	return e.db.UpdateJob(job)
+func (e *Entry) StartJob(job *Job) error {
+	job.State = JobStateRunning
+	return e.db.UpdateJobState(job)
+}
+
+func (e *Entry) FinishJob(job *Job, success bool) error {
+	if success {
+		job.State = JobStateSuccess
+	} else {
+		job.State = JobStateFailed
+	}
+
+	return e.db.UpdateJobState(job)
+}
+
+func (e *Entry) CancelJob(job *Job) error {
+	job.State = JobStateCanceled
+	for i := range job.Steps.Data {
+		step := job.Steps.Data[i]
+		step.State = JobStateCanceled
+	}
+	return e.db.UpdateJobState(job)
+}
+
+func (e *Entry) UpdateJobPayloadAndStep(job *Job) error {
+	return e.db.UpdateJobPayloadAndStep(job)
 }
 
 func (e *Entry) ListJobs(filter *JobFilter) ([]*Job, error) {
