@@ -18,10 +18,12 @@ const (
 
 type Job struct {
 	// do not edit
-	Id        string    `json:"id" yaml:"id" gorm:"primaryKey"`
-	State     string    `json:"state" yaml:"state" gorm:"index"`
-	CreatedAt time.Time `yaml:"createdAt" json:"createdAt" attr:"-"`
-	UpdatedAt time.Time `yaml:"updatedAt" json:"updatedAt"`
+	Id              string    `json:"id" yaml:"id" gorm:"primaryKey"`
+	InvokedRole     string    `json:"invokedRole" yaml:"invokedRole" gorm:"index"`
+	InvokedInstance string    `json:"invokedInstance" yaml:"invokedInstance" gorm:"index"`
+	State           string    `json:"state" yaml:"state" gorm:"index"`
+	CreatedAt       time.Time `yaml:"createdAt" json:"createdAt" attr:"-"`
+	UpdatedAt       time.Time `yaml:"updatedAt" json:"updatedAt"`
 
 	// edit
 	Type   string `json:"type" yaml:"type" gorm:"index"`
