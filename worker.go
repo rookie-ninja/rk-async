@@ -103,9 +103,12 @@ func (w *LocalWorker) processJob() {
 		return
 	}
 
-	event := w.event.Start("processJob",
+	event := w.event.Factory.CreateEventThreadSafe(
 		rkquery.WithEntryName(job.Type),
 		rkquery.WithEntryType(job.Id))
+	event.SetOperation("processJob")
+	event.SetStartTime(time.Now())
+
 	defer func() {
 		event.SetEndTime(time.Now())
 		event.Finish()
@@ -179,12 +182,12 @@ func GetLoggerFromCtx(ctx context.Context) *zap.Logger {
 func GetEventFromCtx(ctx context.Context) rkquery.Event {
 	raw := ctx.Value(EventKey)
 	if raw == nil {
-		return rkentry.GlobalAppCtx.GetEventEntryDefault().CreateEvent()
+		return rkentry.GlobalAppCtx.GetEventEntryDefault().CreateEventThreadSafe()
 	}
 
 	if v, ok := raw.(rkquery.Event); ok {
 		return v
 	}
 
-	return rkentry.GlobalAppCtx.GetEventEntryDefault().CreateEvent()
+	return rkentry.GlobalAppCtx.GetEventEntryDefault().CreateEventThreadSafe()
 }
