@@ -79,6 +79,16 @@ func (e *Database) AddJob(job *rkasync.Job) error {
 	return resDB.Error
 }
 
+func (e *Database) DeleteJob(jobId string) error {
+	if len(jobId) < 1 {
+		return fmt.Errorf("nil job")
+	}
+
+	resDB := e.db.Delete("id = ?", jobId)
+
+	return resDB.Error
+}
+
 func (e *Database) PickJobToWorkWithId(jobId string) (*rkasync.Job, error) {
 	var job *rkasync.Job
 	err := e.db.Transaction(func(tx *gorm.DB) error {

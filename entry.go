@@ -176,6 +176,10 @@ func (e *Entry) AddJob(job *Job) error {
 	return e.db.AddJob(job)
 }
 
+func (e *Entry) DeleteJob(jobId string) error {
+	return e.db.DeleteJob(jobId)
+}
+
 func (e *Entry) StartJob(job *Job) error {
 	job.State = JobStateRunning
 	return e.db.UpdateJobState(job)

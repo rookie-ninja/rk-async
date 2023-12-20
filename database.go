@@ -7,6 +7,8 @@ type Database interface {
 
 	AddJob(job *Job) error
 
+	DeleteJob(jobId string) error
+
 	RegisterProcessor(jobType string, processor Processor)
 
 	GetProcessor(jobType string) Processor
