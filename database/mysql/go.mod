@@ -8,6 +8,7 @@ require (
 	github.com/rookie-ninja/rk-async v0.0.9
 	github.com/rookie-ninja/rk-db/mysql v1.2.21
 	github.com/rs/xid v1.4.0
+	go.uber.org/zap v1.25.0
 	gorm.io/gorm v1.24.2
 )
 
@@ -41,7 +42,6 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
-	go.uber.org/zap v1.25.0 // indirect
 	golang.org/x/sys v0.12.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect

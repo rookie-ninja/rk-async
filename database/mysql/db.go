@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"errors"
 	"fmt"
 	"github.com/rookie-ninja/rk-async"
 	rkmysql "github.com/rookie-ninja/rk-db/mysql"
@@ -76,6 +77,40 @@ func (e *Database) AddJob(job *rkasync.Job) error {
 	resDB := e.db.Create(job)
 
 	return resDB.Error
+}
+
+func (e *Database) PickJobToWorkWithId(jobId string) (*rkasync.Job, error) {
+	var job *rkasync.Job
+	err := e.db.Transaction(func(tx *gorm.DB) error {
+		res := &rkasync.Job{}
+		// get job with state created
+		resDB := tx.Where("state = ? AND id = ?", rkasync.JobStateCreated, jobId).Limit(1).Find(res)
+
+		if resDB.Error != nil {
+			return resDB.Error
+		}
+
+		if resDB.RowsAffected < 1 {
+			return errors.New("job not found")
+		}
+
+		res.State = rkasync.JobStateRunning
+		res.UpdatedAt = time.Now()
+
+		resDB = tx.Updates(res)
+		if resDB.Error != nil {
+			return resDB.Error
+		}
+		if resDB.RowsAffected < 1 {
+			return fmt.Errorf("failed to update job state, id:%s, state:%s", job.Id, rkasync.JobStateRunning)
+		}
+
+		job = res
+
+		return nil
+	})
+
+	return job, err
 }
 
 func (e *Database) PickJobToWork() (*rkasync.Job, error) {

@@ -11,6 +11,8 @@ type Database interface {
 
 	GetProcessor(jobType string) Processor
 
+	PickJobToWorkWithId(jobId string) (*Job, error)
+
 	PickJobToWork() (*Job, error)
 
 	UpdateJobState(job *Job) error
