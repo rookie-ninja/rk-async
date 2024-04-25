@@ -258,11 +258,13 @@ func (e *Database) UpdateJobState(job *rkasync.Job) error {
 
 // TODO: Paginator
 
-func (e *Database) ListJobs(filter *rkasync.JobFilter) ([]*rkasync.Job, error) {
+func (e *Database) ListJobs(filter *rkasync.JobFilter) ([]*rkasync.Job, int, error) {
 	clauses := make([]clause.Expression, 0)
 
 	limit := 100
 	order := "updated_at desc"
+
+	offset := 1
 
 	if filter != nil {
 		if filter.Limit > 0 {
@@ -280,12 +282,18 @@ func (e *Database) ListJobs(filter *rkasync.JobFilter) ([]*rkasync.Job, error) {
 
 	jobList := make([]*rkasync.Job, 0)
 
-	resDB := e.db.Clauses(clauses...).Distinct().Limit(limit).Order(order).Find(&jobList)
+	resDB := e.db.Clauses(clauses...).Distinct().Limit(limit).Offset((offset - 1) * limit).Order(order).Find(&jobList)
 	if resDB.Error != nil {
-		return nil, resDB.Error
+		return nil, 0, resDB.Error
 	}
 
-	return jobList, nil
+	totalCount := int64(0)
+	resDB = e.db.Model(&rkasync.Job{}).Clauses(clauses...).Distinct().Count(&totalCount)
+	if resDB.Error != nil {
+		return nil, 0, resDB.Error
+	}
+
+	return jobList, int(totalCount), nil
 }
 
 func (e *Database) GetJob(id string) (*rkasync.Job, error) {

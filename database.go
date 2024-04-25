@@ -21,7 +21,7 @@ type Database interface {
 
 	UpdateJobPayloadAndStep(job *Job) error
 
-	ListJobs(filter *JobFilter) ([]*Job, error)
+	ListJobs(filter *JobFilter) ([]*Job, int, error)
 
 	GetJob(id string) (*Job, error)
 
@@ -33,5 +33,6 @@ type Database interface {
 type JobFilter struct {
 	ClauseList []clause.Expression
 	Limit      int
+	Offset     int
 	Order      string
 }

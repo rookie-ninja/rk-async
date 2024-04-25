@@ -9,7 +9,7 @@ require (
 	github.com/rookie-ninja/rk-db/mysql v1.2.21
 	github.com/rs/xid v1.4.0
 	go.uber.org/zap v1.25.0
-	gorm.io/gorm v1.24.2
+	gorm.io/gorm v1.25.9
 )
 
 require (
@@ -31,7 +31,7 @@ require (
 	github.com/prometheus/client_model v0.4.1-0.20230718164431-9a2bf3000d16 // indirect
 	github.com/prometheus/common v0.44.0 // indirect
 	github.com/prometheus/procfs v0.11.1 // indirect
-	github.com/rookie-ninja/rk-entry/v2 v2.2.20 // indirect
+	github.com/rookie-ninja/rk-entry/v2 v2.2.22 // indirect
 	github.com/rookie-ninja/rk-logger v1.2.13 // indirect
 	github.com/rookie-ninja/rk-query v1.2.14 // indirect
 	github.com/spf13/afero v1.10.0 // indirect
@@ -49,6 +49,6 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	gorm.io/datatypes v1.1.0 // indirect
-	gorm.io/driver/mysql v1.4.4 // indirect
+	gorm.io/datatypes v1.2.0 // indirect
+	gorm.io/driver/mysql v1.4.7 // indirect
 )

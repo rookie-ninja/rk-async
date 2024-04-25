@@ -208,7 +208,7 @@ func (e *Entry) UpdateJobPayloadAndStep(job *Job) error {
 	return e.db.UpdateJobPayloadAndStep(job)
 }
 
-func (e *Entry) ListJobs(filter *JobFilter) ([]*Job, error) {
+func (e *Entry) ListJobs(filter *JobFilter) ([]*Job, int, error) {
 	return e.db.ListJobs(filter)
 }
 
