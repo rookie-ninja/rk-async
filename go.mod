@@ -3,7 +3,7 @@ module github.com/rookie-ninja/rk-async
 go 1.19
 
 require (
-	github.com/rookie-ninja/rk-entry/v2 v2.2.22
+	github.com/rookie-ninja/rk-entry/v2 v2.2.20
 	github.com/rookie-ninja/rk-query v1.2.14
 	go.uber.org/zap v1.25.0
 	gorm.io/datatypes v1.1.0
